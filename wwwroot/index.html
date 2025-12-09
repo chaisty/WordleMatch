@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WordleHelper</title>
+    <base href="/" />
+    <link rel="stylesheet" href="lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="css/wordle.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link href="WordleHelper.styles.css" rel="stylesheet" />
+</head>
+
+<body>
+    <div id="app">
+        <svg class="loading-progress">
+            <circle r="40%" cx="50%" cy="50%" />
+            <circle r="40%" cx="50%" cy="50%" />
+        </svg>
+        <div class="loading-progress-text"></div>
+    </div>
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="." class="reload">Reload</a>
+        <span class="dismiss">🗙</span>
+    </div>
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script>
+        window.setupKeyboardListener = function(dotNetHelper) {
+            document.addEventListener('keydown', function(event) {
+                const key = event.key;
+                // Only accept single character keys (a-z, A-Z, or space)
+                if (key.length === 1 && ((key >= 'a' && key <= 'z') || (key >= 'A' && key <= 'Z') || key === ' ')) {
+                    event.preventDefault();
+                    dotNetHelper.invokeMethodAsync('HandleKeyPress', key);
+                } else if (key === 'Backspace') {
+                    event.preventDefault();
+                    dotNetHelper.invokeMethodAsync('HandleBackspace');
+                } else if (key === 'ArrowLeft') {
+                    event.preventDefault();
+                    dotNetHelper.invokeMethodAsync('HandleArrowLeft');
+                } else if (key === 'ArrowRight') {
+                    event.preventDefault();
+                    dotNetHelper.invokeMethodAsync('HandleArrowRight');
+                }
+            });
+        };
+    </script>
+</body>
+
+</html>

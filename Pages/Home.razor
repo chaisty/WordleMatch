@@ -1,0 +1,311 @@
+﻿@page "/"
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Wordle Match</PageTitle>
+
+<div class="wordle-container">
+    <h1>Wordle Match</h1>
+
+    <div class="letter-boxes" id="letter-boxes-container">
+        @for (int i = 0; i < 5; i++)
+        {
+            int index = i;
+            <div class="letter-box-container">
+                <div class="letter-box @GetLetterClass(index) @GetFocusClass(index)" @onclick="() => SetFocus(index)">
+                    @(letters[index] == ' ' ? "" : letters[index].ToString().ToUpper())
+                </div>
+                <div class="button-group">
+                    <button class="state-button yellow-btn" @onclick="() => SetState(index, LetterState.Yellow)"></button>
+                    <button class="state-button green-btn" @onclick="() => SetState(index, LetterState.Green)"></button>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="instructions">
+        Type your guess word. Type a capital letter to indicate green, lowercase for yellow, or a space or right arrow for an unmatched letter.
+    </div>
+
+    <div class="filter-buttons">
+            <button class="filter-btn @(wordFilter == WordFilter.Unused ? "active" : "")" @onclick="() => SetFilter(WordFilter.Unused)">unused</button>
+            <button class="filter-btn both-btn @(wordFilter == WordFilter.Both ? "active" : "")" @onclick="() => SetFilter(WordFilter.Both)">both</button>
+            <button class="filter-btn @(wordFilter == WordFilter.Used ? "active" : "")" @onclick="() => SetFilter(WordFilter.Used)">used</button>
+        </div>
+
+        <div class="results">
+            <h2>Matching Words (@GetFilteredWords().Count())</h2>
+            <div class="word-list">
+                @foreach (var word in GetFilteredWords())
+                {
+                    if (usedWords.ContainsKey(word))
+                    {
+                        var (gameNumber, date) = usedWords[word];
+                        <span class="used-word" title="Game #@gameNumber - @date">@word</span>
+                    }
+                    else
+                    {
+                        <span class="word">@word</span>
+                    }
+                }
+            </div>
+        </div>
+</div>
+
+@code {
+    private char[] letters = new char[5] { ' ', ' ', ' ', ' ', ' ' };
+    private LetterState[] states = new LetterState[5];
+    private int focusedIndex = 0;
+    private List<string> allWords = new List<string>();
+    private Dictionary<string, (int gameNumber, string date)> usedWords = new Dictionary<string, (int, string)>();
+    private List<string> matchingWords = new List<string>();
+    private DotNetObjectReference<Home>? dotNetRef;
+    private WordFilter wordFilter = WordFilter.Both;
+
+    private enum LetterState
+    {
+        None,
+        Yellow,
+        Green
+    }
+
+    private enum WordFilter
+    {
+        Unused,
+        Both,
+        Used
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWordLists();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetRef = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("setupKeyboardListener", dotNetRef);
+        }
+    }
+
+    private async Task LoadWordLists()
+    {
+        try
+        {
+            var wordsText = await Http.GetStringAsync("words.txt");
+            allWords = wordsText.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(w => w.Trim().ToLower())
+                .Where(w => w.Length == 5)
+                .ToList();
+
+            var usedCsv = await Http.GetStringAsync("used-words.csv");
+            foreach (var line in usedCsv.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var parts = line.Split(',');
+                if (parts.Length >= 3)
+                {
+                    var word = parts[0].Trim().ToLower();
+                    if (word.Length == 5 && int.TryParse(parts[1].Trim(), out int gameNumber))
+                    {
+                        var date = parts[2].Trim();
+                        usedWords[word] = (gameNumber, date);
+                    }
+                }
+            }
+
+            // Initialize with all words
+            matchingWords = allWords.OrderBy(w => w).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading word lists: {ex.Message}");
+        }
+    }
+
+    [JSInvokable]
+    public void HandleKeyPress(string key)
+    {
+        if (focusedIndex < 0) return;
+
+        char keyChar = key[0];
+        letters[focusedIndex] = char.ToLower(keyChar);
+
+        if (char.IsLower(keyChar))
+        {
+            states[focusedIndex] = LetterState.Yellow;
+        }
+        else if (char.IsUpper(keyChar))
+        {
+            states[focusedIndex] = LetterState.Green;
+        }
+        else if (keyChar == ' ')
+        {
+            states[focusedIndex] = LetterState.None;
+        }
+
+        // Move to next box if not at the end, or clear focus if at the end
+        if (focusedIndex < 4)
+        {
+            focusedIndex++;
+        }
+        else
+        {
+            focusedIndex = -1;
+        }
+
+        CheckAndFilterWords();
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void HandleBackspace()
+    {
+        // If no box is focused, focus the last box
+        if (focusedIndex < 0)
+        {
+            focusedIndex = 4;
+        }
+
+        // Clear the current box
+        letters[focusedIndex] = ' ';
+        states[focusedIndex] = LetterState.None;
+
+        // Move to previous box unless at the first position
+        if (focusedIndex > 0)
+        {
+            focusedIndex--;
+        }
+
+        CheckAndFilterWords();
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void HandleArrowLeft()
+    {
+        // If no box is focused, focus the last box
+        if (focusedIndex < 0)
+        {
+            focusedIndex = 4;
+        }
+        else if (focusedIndex > 0)
+        {
+            focusedIndex--;
+        }
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void HandleArrowRight()
+    {
+        // If no box is focused, focus the first box
+        if (focusedIndex < 0)
+        {
+            focusedIndex = 0;
+        }
+        else if (focusedIndex < 4)
+        {
+            focusedIndex++;
+        }
+        StateHasChanged();
+    }
+
+    private void SetFocus(int index)
+    {
+        focusedIndex = index;
+        StateHasChanged();
+    }
+
+    private void SetState(int index, LetterState state)
+    {
+        if (letters[index] != ' ')
+        {
+            states[index] = state;
+            CheckAndFilterWords();
+            StateHasChanged();
+        }
+    }
+
+    private void CheckAndFilterWords()
+    {
+        // Filter words if at least one letter is entered (not all spaces)
+        if (letters.Any(l => l != ' '))
+        {
+            FilterWords();
+        }
+        else
+        {
+            // Show all words when no letters are entered
+            matchingWords = allWords.OrderBy(w => w).ToList();
+        }
+    }
+
+    private void FilterWords()
+    {
+        matchingWords = allWords.Where(word => MatchesPattern(word)).OrderBy(w => w).ToList();
+    }
+
+    private bool MatchesPattern(string word)
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            if (states[i] == LetterState.Green)
+            {
+                if (word[i] != char.ToLower(letters[i]))
+                    return false;
+            }
+        }
+
+        for (int i = 0; i < 5; i++)
+        {
+            if (states[i] == LetterState.Yellow)
+            {
+                char targetLetter = char.ToLower(letters[i]);
+                if (!word.Contains(targetLetter))
+                    return false;
+                if (word[i] == targetLetter)
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    private string GetLetterClass(int index)
+    {
+        return states[index] switch
+        {
+            LetterState.Yellow => "yellow",
+            LetterState.Green => "green",
+            _ => ""
+        };
+    }
+
+    private string GetFocusClass(int index)
+    {
+        return focusedIndex == index ? "focused" : "";
+    }
+
+    private void SetFilter(WordFilter filter)
+    {
+        wordFilter = filter;
+        StateHasChanged();
+    }
+
+    private IEnumerable<string> GetFilteredWords()
+    {
+        return wordFilter switch
+        {
+            WordFilter.Unused => matchingWords.Where(w => !usedWords.ContainsKey(w)),
+            WordFilter.Used => matchingWords.Where(w => usedWords.ContainsKey(w)),
+            _ => matchingWords
+        };
+    }
+
+    public void Dispose()
+    {
+        dotNetRef?.Dispose();
+    }
+}
