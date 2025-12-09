@@ -5,6 +5,13 @@
     text-align: center;
 }
 
+.mobile-keyboard-input {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+}
+
 .wordle-container h1 {
     margin-bottom: 30px;
     color: #333;

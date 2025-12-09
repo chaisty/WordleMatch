@@ -7,6 +7,8 @@
 <div class="wordle-container">
     <h1>Wordle Match</h1>
 
+    <input type="text" id="mobile-keyboard-input" class="mobile-keyboard-input" />
+
     <div class="letter-boxes" id="letter-boxes-container">
         @for (int i = 0; i < 5; i++)
         {
@@ -217,10 +219,11 @@
         StateHasChanged();
     }
 
-    private void SetFocus(int index)
+    private async void SetFocus(int index)
     {
         focusedIndex = index;
         StateHasChanged();
+        await JSRuntime.InvokeVoidAsync("focusMobileInput");
     }
 
     private void CycleState(int index)
