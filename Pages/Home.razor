@@ -94,6 +94,7 @@
         {
             dotNetRef = DotNetObjectReference.Create(this);
             await JSRuntime.InvokeVoidAsync("setupKeyboardListener", dotNetRef);
+            await JSRuntime.InvokeVoidAsync("focusMobileInput");
         }
     }
 
