@@ -15,22 +15,26 @@
                 <div class="letter-box @GetLetterClass(index) @GetFocusClass(index)" @onclick="() => SetFocus(index)">
                     @(letters[index] == ' ' ? "" : letters[index].ToString().ToUpper())
                 </div>
-                <div class="button-group">
-                    <button class="state-button yellow-btn" @onclick="() => SetState(index, LetterState.Yellow)"></button>
-                    <button class="state-button green-btn" @onclick="() => SetState(index, LetterState.Green)"></button>
-                </div>
+                @if (letters[index] != ' ')
+                {
+                    <div class="button-group">
+                        <button class="state-button @GetStateButtonClass(index)"
+                                title="@GetStateButtonTooltip(index)"
+                                @onclick="() => CycleState(index)"></button>
+                    </div>
+                }
             </div>
         }
     </div>
 
     <div class="instructions">
-        Type letters from your Wordle guesses. Lowercase = excluded letter (white), Uppercase = letter in word but wrong position (yellow). Click the green button for letters in the correct position.
+        Type letters from your Wordle guesses. Lowercase = excluded letter (white), Uppercase = letter in word but wrong position (yellow). Click the button to cycle through states. Press Space to leave a box empty (wildcard).
     </div>
 
     <div class="filter-buttons">
-            <button class="filter-btn @(wordFilter == WordFilter.Unused ? "active" : "")" @onclick="() => SetFilter(WordFilter.Unused)">unused</button>
+            <button class="filter-btn unused-btn @(wordFilter == WordFilter.Unused ? "active" : "")" @onclick="() => SetFilter(WordFilter.Unused)">unused</button>
             <button class="filter-btn both-btn @(wordFilter == WordFilter.Both ? "active" : "")" @onclick="() => SetFilter(WordFilter.Both)">both</button>
-            <button class="filter-btn @(wordFilter == WordFilter.Used ? "active" : "")" @onclick="() => SetFilter(WordFilter.Used)">used</button>
+            <button class="filter-btn used-btn @(wordFilter == WordFilter.Used ? "active" : "")" @onclick="() => SetFilter(WordFilter.Used)">used</button>
         </div>
 
         <div class="results">
@@ -219,14 +223,44 @@
         StateHasChanged();
     }
 
-    private void SetState(int index, LetterState state)
+    private void CycleState(int index)
     {
         if (letters[index] != ' ')
         {
-            states[index] = state;
+            states[index] = states[index] switch
+            {
+                LetterState.White => LetterState.Yellow,
+                LetterState.Yellow => LetterState.Green,
+                LetterState.Green => LetterState.White,
+                _ => LetterState.White
+            };
             CheckAndFilterWords();
             StateHasChanged();
         }
+    }
+
+    private string GetStateButtonClass(int index)
+    {
+        // Button shows the color of the NEXT state
+        return states[index] switch
+        {
+            LetterState.White => "yellow-btn",
+            LetterState.Yellow => "green-btn",
+            LetterState.Green => "white-btn",
+            _ => "yellow-btn"
+        };
+    }
+
+    private string GetStateButtonTooltip(int index)
+    {
+        // Tooltip indicates what color the button will change TO
+        return states[index] switch
+        {
+            LetterState.White => "Change to Yellow",
+            LetterState.Yellow => "Change to Green",
+            LetterState.Green => "Change to White",
+            _ => "Change to Yellow"
+        };
     }
 
     private void CheckAndFilterWords()

@@ -107,6 +107,16 @@
     background-color: #5a9a54;
 }
 
+.state-button.white-btn {
+    background-color: #e8e8e8;
+    border-color: #999;
+    color: #333;
+}
+
+.state-button.white-btn:hover {
+    background-color: #d8d8d8;
+}
+
 .filter-buttons {
     display: flex;
     justify-content: center;
@@ -126,8 +136,17 @@
     transition: all 0.2s;
 }
 
+.filter-btn.unused-btn {
+    background-color: #f0f0f0;
+}
+
 .filter-btn.both-btn {
     background-color: #c0c0c0;
+}
+
+.filter-btn.used-btn {
+    background-color: #e0e0e0;
+    font-style: italic;
 }
 
 .filter-btn.active {
