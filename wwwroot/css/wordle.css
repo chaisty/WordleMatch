@@ -43,6 +43,12 @@
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
 }
 
+.letter-box.white {
+    background-color: #e8e8e8;
+    border-color: #999;
+    color: #333;
+}
+
 .letter-box.yellow {
     background-color: #c9b458;
     border-color: #c9b458;
