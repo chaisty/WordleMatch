@@ -351,14 +351,14 @@
 
     private void CheckAndFilterWords()
     {
-        // Filter words if at least one letter is entered (not all spaces)
-        if (letters.Any(l => l != ' '))
+        // Filter words if at least one letter is entered OR if there are previous guesses
+        if (letters.Any(l => l != ' ') || previousGuesses.Any())
         {
             FilterWords();
         }
         else
         {
-            // Show all words when no letters are entered
+            // Show all words when no letters are entered and no previous guesses
             matchingWords = allWords.OrderBy(w => w).ToList();
         }
     }
@@ -370,9 +370,22 @@
 
     private bool MatchesPattern(string word)
     {
-        // Check current entry
-        if (!MatchesGuess(word, letters, states))
-            return false;
+        // Check current entry only if it has non-locked letters
+        bool hasNonLockedLetters = false;
+        for (int i = 0; i < 5; i++)
+        {
+            if (letters[i] != ' ' && !lockedPositions[i])
+            {
+                hasNonLockedLetters = true;
+                break;
+            }
+        }
+
+        if (hasNonLockedLetters)
+        {
+            if (!MatchesGuess(word, letters, states))
+                return false;
+        }
 
         // Check all previous guesses
         foreach (var (guessLetters, guessStates) in previousGuesses)
