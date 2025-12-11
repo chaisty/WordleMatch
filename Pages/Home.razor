@@ -459,6 +459,18 @@
             }
         }
 
+        // Check minimum frequency for green/yellow letters without white instances
+        foreach (var (letter, minCount) in greenYellowCount)
+        {
+            if (!whiteLetters.Contains(letter))
+            {
+                // No white instance means word should have AT LEAST this many
+                int actualCount = word.Count(c => c == letter);
+                if (actualCount < minCount)
+                    return false;
+            }
+        }
+
         return true;
     }
 
