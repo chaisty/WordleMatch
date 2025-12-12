@@ -153,4 +153,53 @@ describe('parseWordleAnswerFromHtml', () => {
 
         expect(result.word).toBe('guess');
     });
+
+    it('should parse answer from new list format with <li><strong>', () => {
+        const html = readFileSync(
+            join(__dirname, 'fixtures', 'rps-with-list-format.html'),
+            'utf-8'
+        );
+
+        const result = parseWordleAnswerFromHtml(html, '12/11/2025', cheerio.load);
+
+        expect(result).toEqual({
+            word: 'guess',
+            gameNumber: 1636,
+            date: '12/11/2025'
+        });
+    });
+
+    it('should parse list format with various date formats', () => {
+        const html = `
+            <html>
+                <body>
+                    <ul>
+                        <li><strong>Thursday 11 December (#1636):</strong> <a>GUESS</a></li>
+                        <li><strong>Dec 10 (#1635):</strong> <a>ERASE</a></li>
+                    </ul>
+                </body>
+            </html>
+        `;
+
+        const result = parseWordleAnswerFromHtml(html, '12/11/2025', cheerio.load);
+
+        expect(result.word).toBe('guess');
+        expect(result.gameNumber).toBe(1636);
+    });
+
+    it('should handle list format with whitespace in link', () => {
+        const html = `
+            <html>
+                <body>
+                    <ul>
+                        <li><strong>Thursday 11 December (#1636):</strong> <a>  GUESS  </a></li>
+                    </ul>
+                </body>
+            </html>
+        `;
+
+        const result = parseWordleAnswerFromHtml(html, '12/11/2025', cheerio.load);
+
+        expect(result.word).toBe('guess');
+    });
 });

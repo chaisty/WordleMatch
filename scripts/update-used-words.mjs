@@ -75,6 +75,31 @@ export function parseWordleAnswerFromHtml(html, targetDate, cheerioLoad = null) 
         }
     }
 
+    // Strategy 3: Try to find list items with format: <li><strong>Day Month (#XXXX):</strong> <a>WORD</a></li>
+    const listItems = $('li');
+    for (let i = 0; i < listItems.length; i++) {
+        const li = $(listItems[i]);
+        const strongText = li.find('strong').first().text();
+        const linkText = li.find('a').first().text().trim();
+
+        // Look for pattern like "Thursday 11 December (#1636):"
+        const listPattern = /\(#(\d+)\)/;
+        const match = strongText.match(listPattern);
+
+        if (match && linkText && linkText.length === 5) {
+            latestGameNumber = match[1];
+            latestWord = linkText.toLowerCase();
+
+            console.log(`Found from list: Word="${latestWord}", Game#${latestGameNumber}, Date=${latestDate}`);
+
+            return {
+                word: latestWord,
+                gameNumber: parseInt(latestGameNumber),
+                date: latestDate
+            };
+        }
+    }
+
     return null;
 }
 
