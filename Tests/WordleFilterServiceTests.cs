@@ -167,4 +167,18 @@ public class WordleFilterServiceTests
         // Act & Assert
         Assert.True(_service.MatchesGuess("crane", guess)); // lowercase word matches uppercase guess
     }
+
+    [Fact]
+    public void MatchesGuess_ERASE_WithYellowGreenWhiteE_MatchesGUESS()
+    {
+        // Arrange - Guess "ERASE": yellow E, white R, white A, green S, white E
+        var guess = new Guess(
+            new[] { 'e', 'r', 'a', 's', 'e' },
+            new[] { LetterState.Yellow, LetterState.White, LetterState.White, LetterState.Green, LetterState.White }
+        );
+
+        // Act & Assert
+        // GUESS: has exactly 1 E (at position 2, not at position 0), S at position 3, no R or A
+        Assert.True(_service.MatchesGuess("guess", guess));
+    }
 }
