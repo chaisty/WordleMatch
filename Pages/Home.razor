@@ -67,7 +67,8 @@
             <span class="recommendations-label">Recommendations:</span>
             <div class="mode-toggle">
                 <button class="mode-btn @(strategyMode == StrategyMode.Off ? "active" : "")" @onclick="() => SetStrategyMode(StrategyMode.Off)">Off</button>
-                <button class="mode-btn @(strategyMode == StrategyMode.Normal ? "active" : "")" @onclick="() => SetStrategyMode(StrategyMode.Normal)">Normal</button>
+                @* Temporarily hidden due to performance issues - see docs/recommendation-optimization-analysis.md *@
+                @* <button class="mode-btn @(strategyMode == StrategyMode.Normal ? "active" : "")" @onclick="() => SetStrategyMode(StrategyMode.Normal)">Normal</button> *@
                 <button class="mode-btn @(strategyMode == StrategyMode.Hard ? "active" : "")" @onclick="() => SetStrategyMode(StrategyMode.Hard)">Hard</button>
             </div>
             @if (isLoadingRecommendations)
