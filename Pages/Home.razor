@@ -128,6 +128,12 @@
     private StrategyMode strategyMode = StrategyMode.Off;
     private bool isLoadingRecommendations = false;
 
+    // Wordle game info based on user's local date
+    private DateTime userLocalDate = DateTime.Today; // Uses browser's local timezone
+    private int currentWordleGameNumber = 0;
+    private string currentWordleWord = string.Empty;
+    private static readonly DateTime WordleStartDate = new DateTime(2021, 6, 19); // Wordle game 0
+
     private enum WordFilter
     {
         Unused,
@@ -144,6 +150,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        CalculateCurrentWordleGame();
         await LoadWordLists();
     }
 
@@ -194,7 +201,8 @@
             StrategyService.Initialize(wordsText, guessOnlyWords);
 
             // Pass used words to strategy service
-            StrategyService.LoadUsedWords(usedWords);
+            // Use current game number as cutoff so today's word (and future words) remain as possible answers
+            StrategyService.LoadUsedWords(usedWords, currentWordleGameNumber);
 
             // Load pre-calculated starting words
             var startingWordsJson = await Http.GetStringAsync("starting-words.json");
@@ -207,6 +215,27 @@
         {
             Console.WriteLine($"Error loading word lists: {ex.Message}");
         }
+    }
+
+    private void CalculateCurrentWordleGame()
+    {
+        // Calculate days since Wordle started (game 0 was June 19, 2021)
+        currentWordleGameNumber = (userLocalDate - WordleStartDate).Days;
+
+        // Look up today's word from the used words database
+        var todayWordEntry = usedWords.FirstOrDefault(w => w.Value.gameNumber == currentWordleGameNumber);
+        if (!todayWordEntry.Equals(default(KeyValuePair<string, (int, string)>)))
+        {
+            currentWordleWord = todayWordEntry.Key;
+        }
+        else
+        {
+            currentWordleWord = string.Empty;
+        }
+
+        Console.WriteLine($"User's local date: {userLocalDate:yyyy-MM-dd}");
+        Console.WriteLine($"Current Wordle game: #{currentWordleGameNumber}");
+        Console.WriteLine($"Today's word: {(string.IsNullOrEmpty(currentWordleWord) ? "Unknown" : currentWordleWord.ToUpper())}");
     }
 
     [JSInvokable]

@@ -132,16 +132,25 @@ public class WordleStrategyService
     /// Load used words and reclassify them as guess-only words
     /// Used words can still be valid guesses but are no longer possible answers
     /// </summary>
-    public void LoadUsedWords(Dictionary<string, (int gameNumber, string date)> usedWords)
+    public void LoadUsedWords(Dictionary<string, (int gameNumber, string date)> usedWords, int? cutoffGameNumber = null)
     {
         _usedWords = usedWords;
 
         // Reclassify any used words that were marked as possible answers
+        // If cutoffGameNumber is provided, only words used BEFORE that game number are treated as used
+        // This allows treating future words (or words from the cutoff date onwards) as still available
         foreach (var wordEntry in _allWords)
         {
             if (wordEntry.IsPossibleAnswer && _usedWords.ContainsKey(wordEntry.Word))
             {
-                wordEntry.IsPossibleAnswer = false;
+                var gameNumber = _usedWords[wordEntry.Word].gameNumber;
+
+                // If no cutoff specified, treat all used words as unavailable (original behavior)
+                // If cutoff specified, only treat words used BEFORE the cutoff as unavailable
+                if (cutoffGameNumber == null || gameNumber < cutoffGameNumber)
+                {
+                    wordEntry.IsPossibleAnswer = false;
+                }
             }
         }
     }
