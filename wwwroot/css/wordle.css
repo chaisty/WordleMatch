@@ -13,8 +13,32 @@
 }
 
 .wordle-container h1 {
-    margin-bottom: 30px;
+    margin-bottom: 10px;
     color: #333;
+}
+
+.puzzle-info {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 30px;
+    color: #666;
+    font-size: 15px;
+}
+
+.puzzle-date {
+    font-weight: 500;
+}
+
+.puzzle-separator {
+    color: #999;
+    font-weight: 300;
+}
+
+.puzzle-number {
+    font-weight: 500;
+    color: #2563eb;
 }
 
 .entry-row {
@@ -276,6 +300,12 @@
         margin: 20px auto;
     }
 
+    .puzzle-info {
+        font-size: 13px;
+        gap: 6px;
+        margin-bottom: 20px;
+    }
+
     .entry-row,
     .previous-guess-row {
         gap: 8px;
@@ -332,6 +362,10 @@
     padding: 6px 10px;
     background-color: #dbeafe;
     border-radius: 6px;
+}
+
+.hints-section {
+    background-color: #fef9c3;
 }
 
 .recommendations-header {
@@ -416,6 +450,22 @@
 .recommendation-item.guess-only {
     border-color: #fde68a;
     background-color: #fefce8;
+}
+
+.hint-display {
+    margin-top: 10px;
+    padding: 10px 15px;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    color: #1e293b;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.hint-display .haiku-text {
+    font-style: italic;
+    white-space: pre-line;
 }
 
 /* Mobile responsiveness for recommendations */

@@ -10,6 +10,11 @@
 
 <div class="wordle-container">
     <h1>Wordle Match</h1>
+    <div class="puzzle-info">
+        <span class="puzzle-date">@userLocalDate.ToString("MMMM d, yyyy")</span>
+        <span class="puzzle-separator">•</span>
+        <span class="puzzle-number">Puzzle #@currentWordleGameNumber</span>
+    </div>
 
     <input type="text" id="mobile-keyboard-input" class="mobile-keyboard-input" inputmode="text" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" />
 
@@ -88,6 +93,37 @@
         </div>
     </div>
 
+    @if (!string.IsNullOrEmpty(currentWordleWord))
+    {
+        <div class="recommendations-section hints-section">
+            <div class="recommendations-header">
+                <span class="recommendations-label">Hints for @userLocalDate.ToString("MMMM d, yyyy") (#@currentWordleGameNumber):</span>
+                <div class="mode-toggle">
+                    <button class="mode-btn @(selectedHint == HintType.Vowels ? "active" : "")" @onclick="() => SetHint(HintType.Vowels)">Vowels</button>
+                    <button class="mode-btn @(selectedHint == HintType.Synonym ? "active" : "")" @onclick="() => SetHint(HintType.Synonym)">Synonym</button>
+                    <button class="mode-btn @(selectedHint == HintType.Haiku ? "active" : "")" @onclick="() => SetHint(HintType.Haiku)">Haiku</button>
+                </div>
+            </div>
+            @if (selectedHint != null)
+            {
+                <div class="hint-display">
+                    @if (selectedHint == HintType.Vowels)
+                    {
+                        <span>Contains @currentWordVowelCount vowel@(currentWordVowelCount == 1 ? "" : "s")</span>
+                    }
+                    else if (selectedHint == HintType.Synonym && !string.IsNullOrEmpty(currentWordSynonym))
+                    {
+                        <span>@currentWordSynonym</span>
+                    }
+                    else if (selectedHint == HintType.Haiku && !string.IsNullOrEmpty(currentWordHaiku))
+                    {
+                        <div class="haiku-text">@currentWordHaiku.Replace(" / ", "\n")</div>
+                    }
+                </div>
+            }
+        </div>
+    }
+
     <div class="filter-buttons">
         <button class="filter-btn unused-btn @(wordFilter == WordFilter.Unused ? "active" : "")" @onclick="() => SetFilter(WordFilter.Unused)">unused</button>
         <button class="filter-btn both-btn @(wordFilter == WordFilter.Both ? "active" : "")" @onclick="() => SetFilter(WordFilter.Both)">both</button>
@@ -102,7 +138,15 @@
                     if (usedWords.ContainsKey(word))
                     {
                         var (gameNumber, date) = usedWords[word];
-                        <span class="used-word" title="Game #@gameNumber - @date">@word</span>
+                        // Only show as "used" if the game number is before today's game
+                        if (gameNumber < currentWordleGameNumber)
+                        {
+                            <span class="used-word" title="Game #@gameNumber - @date">@word</span>
+                        }
+                        else
+                        {
+                            <span class="word">@word</span>
+                        }
                     }
                     else
                     {
@@ -134,6 +178,20 @@
     private string currentWordleWord = string.Empty;
     private static readonly DateTime WordleStartDate = new DateTime(2021, 6, 19); // Wordle game 0
 
+    // Hints for today's word
+    private Dictionary<string, (string synonym, string haiku)> wordHints = new Dictionary<string, (string, string)>();
+    private string currentWordSynonym = string.Empty;
+    private string currentWordHaiku = string.Empty;
+    private int currentWordVowelCount = 0;
+    private HintType? selectedHint = null;
+
+    private enum HintType
+    {
+        Vowels,
+        Synonym,
+        Haiku
+    }
+
     private enum WordFilter
     {
         Unused,
@@ -150,7 +208,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        CalculateCurrentWordleGame();
         await LoadWordLists();
     }
 
@@ -196,6 +253,9 @@
                 }
             }
 
+            // Now that usedWords is loaded, calculate today's word
+            CalculateCurrentWordleGame();
+
             // Load guess-only words for strategy service
             var guessOnlyWords = await Http.GetStringAsync("guess-only-words.txt");
             StrategyService.Initialize(wordsText, guessOnlyWords);
@@ -208,12 +268,42 @@
             var startingWordsJson = await Http.GetStringAsync("starting-words.json");
             StrategyService.LoadStartingWords(startingWordsJson);
 
+            // Load word hints (synonym and haiku)
+            await LoadWordHints();
+
+            // Look up hints for today's word now that hints are loaded
+            LookupCurrentWordHints();
+
             // Final refresh after all data is loaded
             StateHasChanged();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading word lists: {ex.Message}");
+        }
+    }
+
+    private async Task LoadWordHints()
+    {
+        try
+        {
+            // Load the test hints file (only contains DODGY for now)
+            var hintsCsv = await Http.GetStringAsync("word-hints-test.csv");
+            foreach (var line in hintsCsv.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var parts = line.Split(',', 3); // Split into max 3 parts to handle commas in haiku
+                if (parts.Length >= 3 && parts[0] != "word") // Skip header
+                {
+                    var word = parts[0].Trim().ToLower();
+                    var synonym = parts[1].Trim();
+                    var haiku = parts[2].Trim().Trim('"'); // Remove quotes if present
+                    wordHints[word] = (synonym, haiku);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading word hints: {ex.Message}");
         }
     }
 
@@ -227,15 +317,46 @@
         if (!todayWordEntry.Equals(default(KeyValuePair<string, (int, string)>)))
         {
             currentWordleWord = todayWordEntry.Key;
+            currentWordVowelCount = CountVowels(currentWordleWord);
         }
         else
         {
             currentWordleWord = string.Empty;
+            currentWordVowelCount = 0;
         }
+    }
 
-        Console.WriteLine($"User's local date: {userLocalDate:yyyy-MM-dd}");
-        Console.WriteLine($"Current Wordle game: #{currentWordleGameNumber}");
-        Console.WriteLine($"Today's word: {(string.IsNullOrEmpty(currentWordleWord) ? "Unknown" : currentWordleWord.ToUpper())}");
+    private int CountVowels(string word)
+    {
+        if (string.IsNullOrEmpty(word)) return 0;
+
+        var vowels = new[] { 'a', 'e', 'i', 'o', 'u' };
+        return word.ToLower().Count(c => vowels.Contains(c));
+    }
+
+    private void LookupCurrentWordHints()
+    {
+        // Look up hints for today's word (call this after hints are loaded)
+        if (!string.IsNullOrEmpty(currentWordleWord))
+        {
+            var lookupWord = currentWordleWord.ToLower(); // Convert to lowercase for lookup
+            if (wordHints.ContainsKey(lookupWord))
+            {
+                var hints = wordHints[lookupWord];
+                currentWordSynonym = hints.synonym;
+                currentWordHaiku = hints.haiku;
+            }
+            else
+            {
+                currentWordSynonym = string.Empty;
+                currentWordHaiku = string.Empty;
+            }
+        }
+        else
+        {
+            currentWordSynonym = string.Empty;
+            currentWordHaiku = string.Empty;
+        }
     }
 
     [JSInvokable]
@@ -605,12 +726,25 @@
         StateHasChanged();
     }
 
+    private void SetHint(HintType hint)
+    {
+        // Toggle hint: if already selected, deselect it; otherwise select it
+        selectedHint = selectedHint == hint ? null : hint;
+        StateHasChanged();
+    }
+
     private IEnumerable<string> GetFilteredWords()
     {
         return wordFilter switch
         {
-            WordFilter.Unused => matchingWords.Where(w => !usedWords.ContainsKey(w)),
-            WordFilter.Used => matchingWords.Where(w => usedWords.ContainsKey(w)),
+            // Unused: words not in usedWords OR words with game number >= current game
+            WordFilter.Unused => matchingWords.Where(w =>
+                !usedWords.ContainsKey(w) ||
+                usedWords[w].gameNumber >= currentWordleGameNumber),
+            // Used: words in usedWords AND with game number < current game
+            WordFilter.Used => matchingWords.Where(w =>
+                usedWords.ContainsKey(w) &&
+                usedWords[w].gameNumber < currentWordleGameNumber),
             _ => matchingWords
         };
     }
