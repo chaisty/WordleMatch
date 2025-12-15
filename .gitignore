@@ -65,3 +65,7 @@ Thumbs.db
 
 # Blazor specific
 wwwroot/service-worker-assets.js
+
+# Environment variables (contains secrets)
+.env
+scripts/.env

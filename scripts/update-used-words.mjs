@@ -113,33 +113,157 @@ export function parseWordleAnswerFromHtml(html, targetDate, cheerioLoad = null) 
 }
 
 /**
- * Fetches the latest Wordle answer from Rock Paper Shotgun
+ * Fetches the latest Wordle answer from New York Times
  * @returns {Promise<Object>} - Object with {word, gameNumber, date}
  */
 async function fetchLatestWordleAnswer() {
     try {
-        // Import dynamically to avoid issues
-        const fetch = (await import('node-fetch')).default;
-        const cheerio = await import('cheerio');
+        const { chromium } = await import('playwright');
 
-        const url = 'https://www.rockpapershotgun.com/wordle-past-answers';
-        console.log('Fetching Wordle answers from Rock Paper Shotgun...');
+        // Get credentials from environment variables
+        const nytEmail = process.env.NYT_EMAIL;
+        const nytPassword = process.env.NYT_PASSWORD;
 
-        const response = await fetch(url);
-        const html = await response.text();
-
-        // Try to find today's or yesterday's date
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const dateStr = yesterday.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
-
-        const result = parseWordleAnswerFromHtml(html, dateStr, cheerio.load);
-
-        if (!result) {
-            throw new Error('Could not find latest Wordle answer on the page');
+        if (!nytEmail || !nytPassword) {
+            throw new Error('NYT_EMAIL and NYT_PASSWORD environment variables are required');
         }
 
-        return result;
+        // Calculate tomorrow's game number
+        // NYT posts the review article the day BEFORE the puzzle, but uses tomorrow's puzzle number
+        const today = new Date();
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const WORDLE_START_DATE = new Date('2021-06-19');
+        const gameNumber = Math.floor((tomorrow - WORDLE_START_DATE) / (1000 * 60 * 60 * 24));
+
+        const dateStr = tomorrow.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
+
+        // Construct NYT URL - uses TODAY's date but TOMORROW's game number
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const url = `https://www.nytimes.com/${year}/${month}/${day}/crosswords/wordle-review-${gameNumber}.html`;
+
+        console.log(`Fetching Wordle answer from New York Times...`);
+        console.log(`  Date: ${dateStr} (tomorrow)`);
+        console.log(`  Game: #${gameNumber}`);
+        console.log(`  URL: ${url}`);
+        console.log(`  Authenticating with NYT account...`);
+
+        // Launch browser with stealth settings
+        const browser = await chromium.launch({
+            headless: true,
+            args: [
+                '--disable-blink-features=AutomationControlled',
+                '--disable-dev-shm-usage',
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-infobars',
+                '--window-position=0,0',
+                '--ignore-certifcate-errors',
+                '--ignore-certifcate-errors-spki-list'
+            ]
+        });
+
+        const context = await browser.newContext({
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            viewport: { width: 1920, height: 1080 },
+            locale: 'en-US',
+            timezoneId: 'America/New_York',
+            extraHTTPHeaders: {
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Cache-Control': 'max-age=0'
+            }
+        });
+
+        const page = await context.newPage();
+
+        // Hide webdriver property
+        await page.addInitScript(() => {
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => false
+            });
+        });
+
+        // Login to NYT
+        console.log('  Logging in to NYT...');
+        await page.goto('https://myaccount.nytimes.com/auth/login', {
+            waitUntil: 'domcontentloaded',
+            timeout: 30000
+        });
+
+        // Wait for login form to load
+        await page.waitForSelector('input[type="email"]', { timeout: 10000 });
+
+        // Fill in email
+        await page.fill('input[type="email"]', nytEmail);
+        await page.click('button[type="submit"]');
+
+        // Wait for password field
+        await page.waitForSelector('input[type="password"]', { timeout: 10000 });
+
+        // Fill in password
+        await page.fill('input[type="password"]', nytPassword);
+        await page.click('button[type="submit"]');
+
+        // Wait for login to complete (check for redirect or successful login indicator)
+        await page.waitForTimeout(5000);
+        console.log('  Login successful!');
+
+        // Now navigate to the Wordle review page
+        console.log('  Navigating to Wordle review page...');
+        const response = await page.goto(url, {
+            waitUntil: 'networkidle',
+            timeout: 30000
+        });
+
+        if (response.status() !== 200) {
+            await browser.close();
+            throw new Error(`HTTP ${response.status()}: Failed to load page`);
+        }
+
+        // Wait for content to load
+        await page.waitForTimeout(2000);
+
+        // Get page text content
+        const pageText = await page.textContent('body');
+
+        await browser.close();
+
+        // Look for patterns like "The answer to Wordle 1641 is TRUCK"
+        const patterns = [
+            /answer\s+to\s+Wordle\s+\d+\s+is\s+([A-Z]{5})/i,
+            /answer\s+is\s+([A-Z]{5})/i,
+            /solution\s+is\s+([A-Z]{5})/i,
+            /today'?s?\s+word\s+is\s+([A-Z]{5})/i,
+            /\bWordle\s+\d+\s+answer[:\s]+([A-Z]{5})/i
+        ];
+
+        for (const pattern of patterns) {
+            const match = pageText.match(pattern);
+            if (match) {
+                const word = match[1].toLowerCase();
+                console.log(`  Found word: ${word.toUpperCase()}`);
+
+                return {
+                    word,
+                    gameNumber,
+                    date: dateStr
+                };
+            }
+        }
+
+        throw new Error('Could not find answer on NYT page');
 
     } catch (error) {
         console.error('Error fetching Wordle answer:', error.message);
