@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
+import * as readline from 'readline';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -11,6 +12,80 @@ const WORDLE_START_DATE = new Date('2021-06-19');
 function calculateGameNumber(date) {
     const daysDiff = Math.floor((date - WORDLE_START_DATE) / (1000 * 60 * 60 * 24));
     return daysDiff;
+}
+
+function promptUser(question) {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+
+    return new Promise((resolve) => {
+        rl.question(question, (answer) => {
+            rl.close();
+            resolve(answer.trim());
+        });
+    });
+}
+
+async function addWordHints(word, synonym, haiku) {
+    const hintsPath = join(__dirname, '../wwwroot/word-hints.csv');
+
+    // Read existing hints
+    let entries = [];
+    let hasHeader = false;
+
+    try {
+        const content = readFileSync(hintsPath, 'utf-8');
+        const lines = content.trim().split('\n');
+
+        for (const line of lines) {
+            if (line.startsWith('word,')) {
+                hasHeader = true;
+                continue; // Skip header
+            }
+            const parts = line.split(',', 3);
+            if (parts.length >= 3) {
+                entries.push({
+                    word: parts[0].trim(),
+                    synonym: parts[1].trim(),
+                    haiku: parts[2].trim().replace(/^"|"$/g, '') // Remove surrounding quotes
+                });
+            }
+        }
+    } catch (e) {
+        // File doesn't exist yet, will create it
+        console.log('  Creating new word-hints.csv file');
+    }
+
+    // Check if hint already exists
+    const existingIndex = entries.findIndex(e => e.word.toLowerCase() === word.toLowerCase());
+    if (existingIndex >= 0) {
+        console.log(`  Updating existing hint for ${word}`);
+        entries[existingIndex] = { word, synonym, haiku };
+    } else {
+        entries.push({ word, synonym, haiku });
+    }
+
+    // Sort by word
+    entries.sort((a, b) => a.word.localeCompare(b.word));
+
+    // Write back to file
+    const lines = [];
+    if (!hasHeader) {
+        lines.push('word,synonym,haiku');
+    } else {
+        lines.push('word,synonym,haiku');
+    }
+
+    for (const entry of entries) {
+        // Escape haiku properly (it contains commas and slashes)
+        const escapedHaiku = `"${entry.haiku.replace(/"/g, '""')}"`;
+        lines.push(`${entry.word},${entry.synonym},${escapedHaiku}`);
+    }
+
+    writeFileSync(hintsPath, lines.join('\n') + '\n', 'utf-8');
+    console.log(`✓ Added hints for "${word}" to word-hints.csv`);
 }
 
 function parseDate(dateStr) {
@@ -152,11 +227,31 @@ async function addWord(word, dateStr = null, autoCommit = false) {
 
     console.log(`✓ Added "${word}" to used-words.csv`);
 
+    // Prompt for hints
+    console.log(`\n📝 Add hints for "${word}":`);
+    console.log(`   (Press Enter to skip any hint)\n`);
+
+    const synonym = await promptUser(`Synonym (one word): `);
+    let haiku = '';
+
+    if (synonym) {
+        haiku = await promptUser(`Haiku (three lines, separate with " / "): `);
+    }
+
+    // Add hints if provided
+    if (synonym && haiku) {
+        await addWordHints(word, synonym, haiku);
+    } else if (synonym || haiku) {
+        console.log(`⚠️  Skipping hints (both synonym and haiku are required)`);
+    } else {
+        console.log(`  Skipped hints`);
+    }
+
     // Commit if requested
     if (autoCommit) {
         try {
             console.log(`\nCommitting changes...`);
-            execSync('git add wwwroot/used-words.csv', { cwd: join(__dirname, '..'), stdio: 'inherit' });
+            execSync('git add wwwroot/used-words.csv wwwroot/word-hints.csv', { cwd: join(__dirname, '..'), stdio: 'inherit' });
 
             const commitMessage = `Add Wordle word: ${word} (game #${gameNumber}, ${dateFormatted})`;
             execSync(`git commit -m "${commitMessage}"`, { cwd: join(__dirname, '..'), stdio: 'inherit' });
@@ -225,7 +320,7 @@ Examples:
 
         if (added && !autoCommit) {
             console.log(`\nNext steps:`);
-            console.log(`  git add wwwroot/used-words.csv`);
+            console.log(`  git add wwwroot/used-words.csv wwwroot/word-hints.csv`);
             console.log(`  git commit -m "Add Wordle word: ${word.toUpperCase()}"`);
             console.log(`  git push`);
             console.log(`\nOr run with --commit flag to do this automatically.`);

@@ -287,8 +287,8 @@
     {
         try
         {
-            // Load the test hints file (only contains DODGY for now)
-            var hintsCsv = await Http.GetStringAsync("word-hints-test.csv");
+            // Load word hints (only contains hints for words that have been added)
+            var hintsCsv = await Http.GetStringAsync("word-hints.csv");
             foreach (var line in hintsCsv.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
                 var parts = line.Split(',', 3); // Split into max 3 parts to handle commas in haiku
