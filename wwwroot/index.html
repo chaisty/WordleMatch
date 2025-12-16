@@ -4,7 +4,22 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WordleHelper</title>
+    <title>Wordle Match - The Smartest Wordle Solver & Hint Tool</title>
+    <meta name="description" content="Free Wordle helper that filters possible words based on your guesses. Get intelligent word recommendations, hints for daily puzzles, and solve Wordle faster with our advanced filtering tool." />
+    <meta name="keywords" content="wordle, wordle helper, wordle solver, wordle hints, wordle tool, wordle assistant, word game, daily wordle, wordle strategy" />
+    <meta name="author" content="Wordle Match" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Wordle Match - The Smartest Wordle Solver & Hint Tool" />
+    <meta property="og:description" content="Free Wordle helper that filters possible words based on your guesses. Get word recommendations and hints for daily puzzles." />
+    <meta property="og:site_name" content="Wordle Match" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Wordle Match - The Smartest Wordle Solver & Hint Tool" />
+    <meta name="twitter:description" content="Free Wordle helper that filters possible words based on your guesses. Get word recommendations and hints." />
+
     <base href="/" />
     <link rel="stylesheet" href="lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="css/app.css" />
@@ -14,6 +29,31 @@
     <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
     <link href="WordleHelper.styles.css" rel="stylesheet" />
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Wordle Match",
+        "description": "Smart Wordle helper that filters possible words based on your guesses and provides intelligent word recommendations for daily Wordle puzzles.",
+        "url": "https://8080games.github.io/WordleMatch/",
+        "applicationCategory": "GameApplication",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "featureList": [
+            "Word filtering based on Wordle guesses",
+            "Smart word recommendations with information theory scoring",
+            "Daily puzzle hints including synonyms and haiku clues",
+            "Track used and unused words from past Wordle games",
+            "Hard mode support for strategic gameplay"
+        ],
+        "browserRequirements": "Requires JavaScript"
+    }
+    </script>
 </head>
 
 <body>
@@ -23,6 +63,23 @@
             <circle r="40%" cx="50%" cy="50%" />
         </svg>
         <div class="loading-progress-text"></div>
+
+        <!-- SEO-friendly content (visible to crawlers, hidden once app loads) -->
+        <noscript>
+            <h1>Wordle Match - The Smartest Wordle Solver & Hint Tool</h1>
+            <p>Wordle Match is a free, intelligent Wordle helper tool that helps you solve daily Wordle puzzles faster. Enter your guesses and see which words match your clues.</p>
+            <h2>Features</h2>
+            <ul>
+                <li>Advanced word filtering based on green, yellow, and gray letter states</li>
+                <li>Smart word recommendations using information theory</li>
+                <li>Daily puzzle hints with synonyms and creative haiku clues</li>
+                <li>Track all used words from past Wordle games</li>
+                <li>Hard mode support for strategic gameplay</li>
+                <li>Filter between used and unused words</li>
+                <li>Works on desktop and mobile devices</li>
+            </ul>
+            <p>This application requires JavaScript to be enabled.</p>
+        </noscript>
     </div>
 
     <div id="blazor-error-ui">
