@@ -121,7 +121,7 @@ function parseDate(dateStr) {
     return date;
 }
 
-async function addWord(word, dateStr = null, autoCommit = false) {
+async function addWord(word, dateStr = null) {
     // Validate word
     word = word.trim().toUpperCase();
     if (word.length !== 5) {
@@ -239,32 +239,47 @@ async function addWord(word, dateStr = null, autoCommit = false) {
     }
 
     // Add hints if provided
+    let hintsAdded = false;
     if (synonym && haiku) {
         await addWordHints(word, synonym, haiku);
+        hintsAdded = true;
     } else if (synonym || haiku) {
         console.log(`⚠️  Skipping hints (both synonym and haiku are required)`);
     } else {
         console.log(`  Skipped hints`);
     }
 
-    // Commit if requested
-    if (autoCommit) {
-        try {
-            console.log(`\nCommitting changes...`);
-            execSync('git add wwwroot/used-words.csv wwwroot/word-hints.csv', { cwd: join(__dirname, '..'), stdio: 'inherit' });
+    // Show summary
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`📋 SUMMARY`);
+    console.log(`${'='.repeat(60)}`);
+    console.log(`Word:     ${word}`);
+    console.log(`Date:     ${dateFormatted}`);
+    console.log(`Game:     #${gameNumber}`);
+    if (hintsAdded) {
+        console.log(`Synonym:  ${synonym}`);
+        console.log(`Haiku:    ${haiku}`);
+    } else {
+        console.log(`Hints:    (none)`);
+    }
+    console.log(`${'='.repeat(60)}\n`);
 
-            const commitMessage = `Add Wordle word: ${word} (game #${gameNumber}, ${dateFormatted})`;
-            execSync(`git commit -m "${commitMessage}"`, { cwd: join(__dirname, '..'), stdio: 'inherit' });
+    // Always commit
+    try {
+        console.log(`Committing changes...`);
+        execSync('git add wwwroot/used-words.csv wwwroot/word-hints.csv', { cwd: join(__dirname, '..'), stdio: 'inherit' });
 
-            console.log(`\nPushing to remote...`);
-            execSync('git push', { cwd: join(__dirname, '..'), stdio: 'inherit' });
+        const commitMessage = `Add Wordle word: ${word} (game #${gameNumber}, ${dateFormatted})`;
+        execSync(`git commit -m "${commitMessage}"`, { cwd: join(__dirname, '..'), stdio: 'inherit' });
 
-            console.log(`✓ Changes committed and pushed`);
-        } catch (error) {
-            console.error(`\n❌ Error during git operations:`, error.message);
-            console.log(`   Changes saved to file but not committed`);
-            return true;
-        }
+        console.log(`\nPushing to remote...`);
+        execSync('git push', { cwd: join(__dirname, '..'), stdio: 'inherit' });
+
+        console.log(`\n✅ SUCCESS! Changes committed and pushed\n`);
+    } catch (error) {
+        console.error(`\n❌ Error during git operations:`, error.message);
+        console.log(`   Changes saved to files but not committed\n`);
+        return true;
     }
 
     return true;
@@ -279,53 +294,38 @@ async function main() {
 Wordle Word Adder - Manually add words to used-words.csv
 
 Usage:
-  node add-word.mjs <word> [date] [--commit]
+  node add-word.mjs <word> [date]
 
 Arguments:
   word         5-letter word to add (required)
-  date         Date in YYYY-MM-DD or MM/DD/YYYY format (optional, defaults to tomorrow)
-  --commit     Automatically commit and push changes (optional)
+  date         Date in YYYY-MM-DD or MM/DD/YYYY format (optional)
+               If omitted, automatically uses next sequential game number
 
 Examples:
   node add-word.mjs TRUCK
-    Adds TRUCK for tomorrow's date
+    Adds TRUCK for next game number (auto-detects from file)
 
   node add-word.mjs TRUCK 2025-12-16
     Adds TRUCK for December 16, 2025
 
-  node add-word.mjs TRUCK 12/16/2025 --commit
-    Adds TRUCK for December 16, 2025 and commits/pushes changes
+  npm run add TRUCK
+    Same as above, but easier to remember
 
-  node add-word.mjs TRUCK --commit
-    Adds TRUCK for tomorrow and commits/pushes changes
+Note: Changes are automatically committed and pushed to git.
 `);
         process.exit(0);
     }
 
     const word = args[0];
     let date = null;
-    let autoCommit = false;
 
-    // Parse remaining arguments
-    for (let i = 1; i < args.length; i++) {
-        if (args[i] === '--commit') {
-            autoCommit = true;
-        } else if (!date) {
-            date = args[i];
-        }
+    // Parse remaining arguments (just the date if provided)
+    if (args.length > 1) {
+        date = args[1];
     }
 
     try {
-        const added = await addWord(word, date, autoCommit);
-
-        if (added && !autoCommit) {
-            console.log(`\nNext steps:`);
-            console.log(`  git add wwwroot/used-words.csv wwwroot/word-hints.csv`);
-            console.log(`  git commit -m "Add Wordle word: ${word.toUpperCase()}"`);
-            console.log(`  git push`);
-            console.log(`\nOr run with --commit flag to do this automatically.`);
-        }
-
+        await addWord(word, date);
         process.exit(0);
     } catch (error) {
         console.error(`\n❌ Error: ${error.message}\n`);

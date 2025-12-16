@@ -39,7 +39,8 @@ Where `<command>` is one of:
 - **date** (optional): Date in `YYYY-MM-DD` or `MM/DD/YYYY` format
   - If omitted, uses the **next sequential game** (last game number + 1)
   - Falls back to tomorrow if file is empty
-- **--commit** (optional): Automatically commit and push changes
+
+**Note:** Changes are **automatically committed and pushed** to git
 
 ## Examples
 
@@ -56,19 +57,16 @@ npm run add TRUCK 2025-12-16
 # or: add-word TRUCK 2025-12-16
 ```
 
-### Add and commit in one step
-```bash
-npm run add TRUCK -- --commit
-# or: add-word TRUCK --commit
-```
+### Summary and auto-commit
+All changes are automatically:
+- Added to both `used-words.csv` and `word-hints.csv`
+- Committed with a descriptive message
+- Pushed to the remote repository
 
-### Add for specific date and commit
-```bash
-npm run add TRUCK 12/16/2025 -- --commit
-# or: add-word TRUCK 12/16/2025 --commit
-```
-
-**Note:** When using `npm run add`, put `--` before flags like `--commit`
+You'll see a summary showing:
+- Word, date, and game number
+- Hints that were added (or "none" if skipped)
+- Git commit and push status
 
 ## Features
 
