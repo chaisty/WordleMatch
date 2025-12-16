@@ -462,11 +462,11 @@
             states[focusedIndex] = LetterState.None;
         }
 
-        // Move to previous non-locked box unless:
-        // 1. At the first position, OR
-        // 2. No editable boxes before this one (it's the first editable box), OR
-        // 3. On last editable box and it had content (stay on last box after deleting)
-        if (focusedIndex > 0 && hasEditableBoxBefore && !(isLastEditableBox && hadContent))
+        // Move to previous non-locked box only if:
+        // 1. The box was already empty (move back to edit previous box)
+        // 2. AND there's an editable box before this one
+        // If box had content, stay on it to show the deletion
+        if (!hadContent && focusedIndex > 0 && hasEditableBoxBefore)
         {
             focusedIndex--;
             while (focusedIndex >= 0 && lockedPositions[focusedIndex])
