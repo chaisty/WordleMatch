@@ -5,7 +5,9 @@
   "description": "Script to update Wordle used words list",
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "add": "node add-word.mjs",
+    "update": "node update-used-words.mjs"
   },
   "dependencies": {
     "cheerio": "^1.0.0-rc.12",
