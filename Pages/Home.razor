@@ -451,29 +451,39 @@
             }
         }
 
-        // Check if we're on the last editable box and it has content
-        bool isLastEditableBox = focusedIndex == lastEditableIndex;
+        // Check if current box has content
         bool hadContent = letters[focusedIndex] != ' ';
 
-        // Don't clear locked boxes
-        if (!lockedPositions[focusedIndex])
+        if (hadContent)
         {
-            letters[focusedIndex] = ' ';
-            states[focusedIndex] = LetterState.None;
+            // Box has content: delete it and stay on this box
+            if (!lockedPositions[focusedIndex])
+            {
+                letters[focusedIndex] = ' ';
+                states[focusedIndex] = LetterState.None;
+            }
         }
-
-        // Move to previous non-locked box only if:
-        // 1. The box was already empty (move back to edit previous box)
-        // 2. AND there's an editable box before this one
-        // If box had content, stay on it to show the deletion
-        if (!hadContent && focusedIndex > 0 && hasEditableBoxBefore)
+        else
         {
-            focusedIndex--;
-            while (focusedIndex >= 0 && lockedPositions[focusedIndex])
+            // Box is empty: move back one box and delete its content
+            if (focusedIndex > 0 && hasEditableBoxBefore)
             {
                 focusedIndex--;
+                while (focusedIndex >= 0 && lockedPositions[focusedIndex])
+                {
+                    focusedIndex--;
+                }
+                if (focusedIndex < 0)
+                {
+                    focusedIndex = 0;
+                }
+                else if (!lockedPositions[focusedIndex])
+                {
+                    // Clear the box we moved to
+                    letters[focusedIndex] = ' ';
+                    states[focusedIndex] = LetterState.None;
+                }
             }
-            if (focusedIndex < 0) focusedIndex = 0;
         }
 
         CheckAndFilterWords();
