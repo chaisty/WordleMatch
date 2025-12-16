@@ -247,7 +247,9 @@ async function addWord(word, dateStr = null) {
                     synonym = parts[1].trim();
                     haiku = parts[2].trim().replace(/^"|"$/g, ''); // Remove surrounding quotes
 
-                    console.log(`\n📝 Found hints for "${word}" in source file`);
+                    console.log(`\n📝 Found hints for "${word}" in source file:`);
+                    console.log(`   Synonym: ${synonym}`);
+                    console.log(`   Haiku:   ${haiku}`);
                     await addWordHints(word, synonym, haiku);
                     hintsAdded = true;
                     break;
