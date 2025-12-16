@@ -202,25 +202,34 @@ async function fetchLatestWordleAnswer() {
             timeout: 30000
         });
 
-        // Wait a bit for the page to fully load
-        await page.waitForTimeout(3000);
+        // Wait longer for JavaScript to render the form
+        console.log('  Waiting for login form to load...');
+        await page.waitForTimeout(5000);
 
-        // Try multiple selectors for email input
+        // Check if there are any iframes
+        const frames = page.frames();
+        console.log(`  Found ${frames.length} frames on page`);
+
+        // Try to find email input in main page first, then in iframes
         const emailSelectors = [
+            '#email',
             'input[type="email"]',
             'input[name="email"]',
-            'input[id="email"]',
-            '#email',
-            'input[autocomplete="username"]',
-            'input[data-testid="email-input"]'
+            'input[id="email"]'
         ];
 
         let emailInput = null;
+        let targetFrame = page;
+
+        // First try main page
         for (const selector of emailSelectors) {
             try {
-                emailInput = await page.waitForSelector(selector, { timeout: 2000 });
+                emailInput = await page.waitForSelector(selector, {
+                    timeout: 3000,
+                    state: 'visible'
+                });
                 if (emailInput) {
-                    console.log(`  Found email input with selector: ${selector}`);
+                    console.log(`  Found email input in main page with selector: ${selector}`);
                     break;
                 }
             } catch (e) {
@@ -228,14 +237,46 @@ async function fetchLatestWordleAnswer() {
             }
         }
 
-        if (!emailInput) {
-            // Take screenshot for debugging
-            await page.screenshot({ path: 'login-page-debug.png' });
-            throw new Error('Could not find email input field. Screenshot saved to login-page-debug.png');
+        // If not found in main page, try iframes
+        if (!emailInput && frames.length > 1) {
+            console.log('  Email not found in main page, checking iframes...');
+            for (const frame of frames) {
+                if (emailInput) break;
+                for (const selector of emailSelectors) {
+                    try {
+                        emailInput = await frame.waitForSelector(selector, {
+                            timeout: 1000,
+                            state: 'visible'
+                        });
+                        if (emailInput) {
+                            targetFrame = frame;
+                            console.log(`  Found email input in iframe with selector: ${selector}`);
+                            break;
+                        }
+                    } catch (e) {
+                        // Try next selector
+                    }
+                }
+            }
         }
 
-        // Fill in email
-        await page.fill(emailInput, nytEmail);
+        if (!emailInput) {
+            // Take screenshot and save HTML for debugging
+            await page.screenshot({ path: 'login-page-debug.png' });
+            const html = await page.content();
+            const fs = await import('fs');
+            fs.writeFileSync('login-page-debug.html', html);
+
+            // Log the page URL in case of redirect
+            console.log(`  Current URL: ${page.url()}`);
+            console.log(`  Page HTML saved to login-page-debug.html`);
+
+            throw new Error('Could not find email input field. Debug files saved.');
+        }
+
+        // Fill in email using the correct frame
+        await targetFrame.fill('#email', nytEmail);
+        console.log('  Filled in email address');
 
         // Find and click submit button
         const submitSelectors = [
@@ -247,7 +288,7 @@ async function fetchLatestWordleAnswer() {
 
         for (const selector of submitSelectors) {
             try {
-                const button = await page.$(selector);
+                const button = await targetFrame.$(selector);
                 if (button) {
                     await button.click();
                     console.log(`  Clicked submit with selector: ${selector}`);
@@ -259,26 +300,54 @@ async function fetchLatestWordleAnswer() {
         }
 
         // Wait for password field
-        await page.waitForTimeout(2000);
+        await page.waitForTimeout(3000);
 
         const passwordSelectors = [
+            '#password',
             'input[type="password"]',
             'input[name="password"]',
-            'input[id="password"]',
-            '#password',
-            'input[autocomplete="current-password"]'
+            'input[id="password"]'
         ];
 
         let passwordInput = null;
+
+        // Try main page first
         for (const selector of passwordSelectors) {
             try {
-                passwordInput = await page.waitForSelector(selector, { timeout: 2000 });
+                passwordInput = await page.waitForSelector(selector, {
+                    timeout: 3000,
+                    state: 'visible'
+                });
                 if (passwordInput) {
-                    console.log(`  Found password input with selector: ${selector}`);
+                    targetFrame = page;
+                    console.log(`  Found password input in main page with selector: ${selector}`);
                     break;
                 }
             } catch (e) {
                 // Try next selector
+            }
+        }
+
+        // Try iframes if not found
+        if (!passwordInput && frames.length > 1) {
+            console.log('  Password not found in main page, checking iframes...');
+            for (const frame of frames) {
+                if (passwordInput) break;
+                for (const selector of passwordSelectors) {
+                    try {
+                        passwordInput = await frame.waitForSelector(selector, {
+                            timeout: 1000,
+                            state: 'visible'
+                        });
+                        if (passwordInput) {
+                            targetFrame = frame;
+                            console.log(`  Found password input in iframe with selector: ${selector}`);
+                            break;
+                        }
+                    } catch (e) {
+                        // Try next selector
+                    }
+                }
             }
         }
 
@@ -287,13 +356,14 @@ async function fetchLatestWordleAnswer() {
             throw new Error('Could not find password input field. Screenshot saved to password-page-debug.png');
         }
 
-        // Fill in password
-        await page.fill(passwordInput, nytPassword);
+        // Fill in password using the correct frame
+        await targetFrame.fill('#password', nytPassword);
+        console.log('  Filled in password');
 
         // Click login button
         for (const selector of submitSelectors) {
             try {
-                const button = await page.$(selector);
+                const button = await targetFrame.$(selector);
                 if (button) {
                     await button.click();
                     console.log(`  Clicked login with selector: ${selector}`);
