@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://8080games.github.io/WordleMatch/sitemap.xml
+Sitemap: https://wordlematch.8080games.com/sitemap.xml
