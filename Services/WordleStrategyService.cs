@@ -11,6 +11,7 @@ public class WordleStrategyService
     private Dictionary<string, (int gameNumber, string date)> _usedWords = new();
     private List<string> _highQualityCandidates = new();
     private HashSet<string> _topGuessOnlyWords = new();
+    private Dictionary<string, Dictionary<string, List<Recommendation>>>? _secondWordCache;
 
     public class WordEntry
     {
@@ -141,6 +142,48 @@ public class WordleStrategyService
         }
     }
 
+    /// <summary>
+    /// Load pre-computed second-word cache for instant second-guess recommendations
+    /// </summary>
+    public void LoadSecondWordCache(string jsonContent)
+    {
+        try
+        {
+            var doc = System.Text.Json.JsonDocument.Parse(jsonContent);
+            _secondWordCache = new Dictionary<string, Dictionary<string, List<Recommendation>>>();
+
+            // Parse each starting word's patterns
+            foreach (var startWord in doc.RootElement.EnumerateObject())
+            {
+                var patternMap = new Dictionary<string, List<Recommendation>>();
+
+                foreach (var pattern in startWord.Value.EnumerateObject())
+                {
+                    var recommendations = new List<Recommendation>();
+
+                    foreach (var rec in pattern.Value.EnumerateArray())
+                    {
+                        var word = rec.GetProperty("Word").GetString() ?? "";
+                        var score = rec.GetProperty("Score").GetDouble();
+                        var isPossibleAnswer = rec.GetProperty("IsPossibleAnswer").GetBoolean();
+
+                        // Use 0 for remaining answers since it will be recalculated
+                        recommendations.Add(new Recommendation(word, score, 0, isPossibleAnswer));
+                    }
+
+                    patternMap[pattern.Name] = recommendations;
+                }
+
+                _secondWordCache[startWord.Name] = patternMap;
+            }
+        }
+        catch
+        {
+            // If loading fails, fall back to live calculation
+            _secondWordCache = null;
+        }
+    }
+
     private List<Recommendation> ParseRecommendations(System.Text.Json.JsonElement element)
     {
         var recommendations = new List<Recommendation>();
@@ -252,6 +295,31 @@ public class WordleStrategyService
             }
         }
 
+        // Check second-word cache for instant recommendations (Normal mode only)
+        if (guesses.Count == 1 && !hardMode && _secondWordCache != null)
+        {
+            var firstGuess = new string(guesses[0].Letters).ToLower();
+            var pattern = GetPatternString(guesses[0]);
+
+            if (_secondWordCache.TryGetValue(firstGuess, out var patterns))
+            {
+                if (patterns.TryGetValue(pattern, out var cachedRecommendations))
+                {
+                    // Recalculate remaining answers count (cache stores 0)
+                    var possibleAnswersForCount = _allWords
+                        .Where(w => w.IsPossibleAnswer)
+                        .Select(w => w.Word)
+                        .Where(w => _filterService.MatchesPattern(w, guesses))
+                        .Count();
+
+                    // Update remaining answers count in cached recommendations
+                    return cachedRecommendations
+                        .Select(r => new Recommendation(r.Word, r.Score, possibleAnswersForCount, r.IsPossibleAnswer))
+                        .ToList();
+                }
+            }
+        }
+
         // Get remaining possible answers
         // Used words have already been reclassified as guess-only in LoadUsedWords()
         var possibleAnswers = _allWords
@@ -291,6 +359,122 @@ public class WordleStrategyService
             .ToList();
 
         return recommendations;
+    }
+
+    /// <summary>
+    /// Gets quick recommendations by evaluating a smaller subset of candidates
+    /// Used for Phase 3 progressive results - shows instant feedback
+    /// </summary>
+    public List<Recommendation> GetRecommendationsQuick(List<Guess> guesses, bool hardMode, int topN = 5)
+    {
+        // Use cached starting words if no guesses have been made
+        if (guesses.Count == 0)
+        {
+            if (hardMode && _cachedStartingWordsHard != null)
+                return _cachedStartingWordsHard;
+            else if (!hardMode && _cachedStartingWordsNormal != null)
+                return _cachedStartingWordsNormal;
+        }
+
+        // Check second-word cache (instant for cached patterns)
+        if (guesses.Count == 1 && !hardMode && _secondWordCache != null)
+        {
+            var firstGuess = new string(guesses[0].Letters).ToLower();
+            var pattern = GetPatternString(guesses[0]);
+
+            if (_secondWordCache.TryGetValue(firstGuess, out var patterns))
+            {
+                if (patterns.TryGetValue(pattern, out var cachedRecommendations))
+                {
+                    var possibleAnswersForCount = _allWords
+                        .Where(w => w.IsPossibleAnswer)
+                        .Select(w => w.Word)
+                        .Where(w => _filterService.MatchesPattern(w, guesses))
+                        .Count();
+
+                    return cachedRecommendations
+                        .Select(r => new Recommendation(r.Word, r.Score, possibleAnswersForCount, r.IsPossibleAnswer))
+                        .ToList();
+                }
+            }
+        }
+
+        // Get remaining possible answers
+        var possibleAnswers = _allWords
+            .Where(w => w.IsPossibleAnswer)
+            .Select(w => w.Word)
+            .Where(w => _filterService.MatchesPattern(w, guesses))
+            .ToList();
+
+        if (possibleAnswers.Count <= 1)
+        {
+            return possibleAnswers
+                .Select(w => new Recommendation(w, 1.0, 1, true))
+                .ToList();
+        }
+
+        // Get quick subset of candidates (limit to ~500 for instant results)
+        var validGuesses = hardMode
+            ? GetHardModeValidGuesses(guesses).Take(500).ToList()
+            : GetQuickNormalModeCandidates(possibleAnswers);
+
+        // Calculate scores for quick subset
+        var recommendations = validGuesses
+            .AsParallel()
+            .Select(guess => new
+            {
+                Word = guess,
+                Score = CalculateExpectedInformation(guess, possibleAnswers),
+                IsPossibleAnswer = _allWords.First(w => w.Word == guess).IsPossibleAnswer
+            })
+            .OrderByDescending(r => r.Score)
+            .ThenByDescending(r => r.IsPossibleAnswer)
+            .Take(topN)
+            .Select(r => new Recommendation(r.Word, r.Score, possibleAnswers.Count, r.IsPossibleAnswer))
+            .ToList();
+
+        return recommendations;
+    }
+
+    /// <summary>
+    /// Gets full recommendations with complete evaluation
+    /// Used for Phase 3 progressive results - refines quick results
+    /// </summary>
+    public List<Recommendation> GetRecommendationsFull(List<Guess> guesses, bool hardMode, int topN = 5)
+    {
+        // Just delegate to the main GetRecommendations method for full evaluation
+        return GetRecommendations(guesses, hardMode, topN);
+    }
+
+    /// <summary>
+    /// Gets quick subset of candidates for instant progressive results
+    /// Returns ~500 best candidates for fast evaluation
+    /// </summary>
+    private List<string> GetQuickNormalModeCandidates(List<string> possibleAnswers)
+    {
+        int answerCount = possibleAnswers.Count;
+
+        if (answerCount > 200)  // Early game
+        {
+            // Take first 500 high-quality candidates
+            return _highQualityCandidates.Any()
+                ? _highQualityCandidates.Take(500).ToList()
+                : _allWords.Select(w => w.Word).Take(500).ToList();
+        }
+        else if (answerCount > 20)  // Mid game
+        {
+            // All possible answers + limited guess-only words
+            return _allWords
+                .Where(w => w.IsPossibleAnswer || _topGuessOnlyWords.Contains(w.Word))
+                .Select(w => w.Word)
+                .Take(500)
+                .ToList();
+        }
+        else  // Late game
+        {
+            // Fast enough to check everything
+            return _allWords.Select(w => w.Word).ToList();
+        }
     }
 
     /// <summary>
@@ -431,5 +615,20 @@ public class WordleStrategyService
         }
 
         return new string(pattern);
+    }
+
+    /// <summary>
+    /// Converts a Guess object to a pattern string (e.g., "GYWWG")
+    /// Used for cache lookups
+    /// </summary>
+    private string GetPatternString(Guess guess)
+    {
+        return new string(guess.States.Select(state => state switch
+        {
+            LetterState.Green => 'G',
+            LetterState.Yellow => 'Y',
+            LetterState.White => 'W',
+            _ => 'W'
+        }).ToArray());
     }
 }

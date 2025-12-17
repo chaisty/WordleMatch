@@ -390,6 +390,18 @@
     font-style: italic;
 }
 
+.refining-indicator {
+    font-size: 11px;
+    color: var(--color-text-tertiary);
+    margin-left: 4px;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
 .mode-toggle {
     display: flex;
     gap: 3px;

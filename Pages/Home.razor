@@ -88,6 +88,10 @@
             {
                 <span class="loading-indicator">Calculating...</span>
             }
+            else if (isRefiningRecommendations)
+            {
+                <span class="refining-indicator">✨</span>
+            }
             else if (strategyMode != StrategyMode.Off && recommendations != null && recommendations.Any())
             {
                 <div class="recommendations-list">
@@ -179,6 +183,7 @@
     private List<WordleStrategyService.Recommendation>? recommendations = null;
     private StrategyMode strategyMode = StrategyMode.Off;
     private bool isLoadingRecommendations = false;
+    private bool isRefiningRecommendations = false;
     private bool isDarkMode = false;
 
     // Wordle game info based on user's local date
@@ -283,6 +288,19 @@
             // Load high-quality words for Normal mode optimization
             var highQualityWordsJson = await Http.GetStringAsync("high-quality-words.json");
             StrategyService.LoadHighQualityWords(highQualityWordsJson);
+
+            // Load second-word cache for instant second-guess recommendations (Phase 2B)
+            // This file is optional - if not found, live calculation will be used
+            try
+            {
+                var secondWordCacheJson = await Http.GetStringAsync("second-word-cache.json");
+                StrategyService.LoadSecondWordCache(secondWordCacheJson);
+            }
+            catch
+            {
+                // Cache file not found - will use live calculation
+                Console.WriteLine("Second-word cache not found, using live calculation");
+            }
 
             // Load word hints (synonym and haiku)
             await LoadWordHints();
@@ -817,6 +835,7 @@
         }
 
         isLoadingRecommendations = true;
+        isRefiningRecommendations = false;
         StateHasChanged();
 
         await Task.Delay(1); // Allow UI to update
@@ -839,9 +858,34 @@
             }
 
             bool isHardMode = strategyMode == StrategyMode.Hard;
-            recommendations = StrategyService.GetRecommendations(guesses, isHardMode, topN: 5);
 
-            Console.WriteLine($"Generated {recommendations?.Count ?? 0} recommendations");
+            // Phase 1: Quick evaluation for instant feedback
+            recommendations = StrategyService.GetRecommendationsQuick(guesses, isHardMode, topN: 5);
+            isLoadingRecommendations = false;
+            isRefiningRecommendations = true;  // Show refining indicator
+            StateHasChanged();
+
+            Console.WriteLine($"Quick: Generated {recommendations?.Count ?? 0} recommendations");
+
+            // Phase 2: Full evaluation in background (only if not already cached)
+            // Skip refinement if we got cached results (which are already optimal)
+            bool isCachedResult = (guesses.Count == 0) ||
+                                  (guesses.Count == 1 && !isHardMode);
+
+            if (!isCachedResult)
+            {
+                await Task.Delay(1); // Allow UI to update with quick results
+
+                var fullRecommendations = StrategyService.GetRecommendationsFull(guesses, isHardMode, topN: 5);
+
+                // Update only if full recommendations are different/better
+                if (AreBetterRecommendations(fullRecommendations, recommendations))
+                {
+                    recommendations = fullRecommendations;
+                    StateHasChanged();
+                    Console.WriteLine($"Full: Updated with {recommendations?.Count ?? 0} refined recommendations");
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -851,8 +895,38 @@
         finally
         {
             isLoadingRecommendations = false;
+            isRefiningRecommendations = false;
             StateHasChanged();
         }
+    }
+
+    /// <summary>
+    /// Checks if new recommendations are better than current ones
+    /// Returns true if they're different and worth updating the UI
+    /// </summary>
+    private bool AreBetterRecommendations(
+        List<WordleStrategyService.Recommendation>? newRecs,
+        List<WordleStrategyService.Recommendation>? currentRecs)
+    {
+        if (newRecs == null || currentRecs == null)
+            return false;
+
+        if (newRecs.Count != currentRecs.Count)
+            return true;
+
+        // Check if top recommendation changed
+        if (newRecs[0].Word != currentRecs[0].Word)
+            return true;
+
+        // Check if any scores improved significantly (>1% difference)
+        for (int i = 0; i < Math.Min(newRecs.Count, currentRecs.Count); i++)
+        {
+            var scoreDiff = Math.Abs(newRecs[i].Score - currentRecs[i].Score);
+            if (scoreDiff > 0.01)
+                return true;
+        }
+
+        return false;
     }
 
     private async Task InitializeTheme()

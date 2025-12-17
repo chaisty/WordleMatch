@@ -469,6 +469,106 @@ public class WordleStrategyServiceTests
         return allWords ?? new List<WordleStrategyService.WordEntry>();
     }
 
+    [Fact]
+    public void GenerateSecondWordCache()
+    {
+        // This test generates pre-computed second-guess recommendations for top 20 starting words
+        // WARNING: This will take 2-4 hours to run! Run offline when needed.
+        _testOutputHelper.WriteLine("Generating second-word cache for top 20 starting words...");
+        _testOutputHelper.WriteLine("WARNING: This will take 2-4 hours to complete!");
+
+        var top20StartingWords = new[]
+        {
+            "salet", "raile", "saner", "arose", "irate",
+            "soare", "alter", "later", "crate", "trace",
+            "slate", "stare", "snare", "crane", "slant",
+            "caste", "roast", "least", "toast", "coast"
+        };
+
+        var allWordsList = GetAllWords();
+        var answerWords = allWordsList.Where(w => w.IsPossibleAnswer).Select(w => w.Word).ToList();
+
+        _testOutputHelper.WriteLine($"Processing {top20StartingWords.Length} starting words against {answerWords.Count} answers...");
+
+        var cache = new Dictionary<string, Dictionary<string, List<CachedRecommendation>>>();
+        int totalPatterns = 0;
+
+        var startTime = DateTime.Now;
+
+        foreach (var startWord in top20StartingWords)
+        {
+            _testOutputHelper.WriteLine($"\nProcessing '{startWord}'...");
+            var patternMap = new Dictionary<string, List<CachedRecommendation>>();
+
+            // Get all unique patterns for this starting word
+            var patternsForWord = answerWords
+                .Select(answer => InvokeGetPattern(startWord, answer))
+                .Distinct()
+                .ToList();
+
+            _testOutputHelper.WriteLine($"  Found {patternsForWord.Count} unique patterns");
+
+            foreach (var pattern in patternsForWord)
+            {
+                // Create a guess for this starting word with this pattern
+                var guess = new Guess(
+                    startWord.ToCharArray(),
+                    PatternStringToLetterStates(pattern)
+                );
+
+                // Calculate best second guesses for this pattern
+                var recommendations = _service.GetRecommendations(
+                    new List<Guess> { guess },
+                    hardMode: false,
+                    topN: 5
+                );
+
+                patternMap[pattern] = recommendations.Select(r => new CachedRecommendation
+                {
+                    Word = r.Word,
+                    Score = r.Score,
+                    IsPossibleAnswer = r.IsPossibleAnswer
+                }).ToList();
+
+                totalPatterns++;
+            }
+
+            cache[startWord] = patternMap;
+            _testOutputHelper.WriteLine($"  Completed {patternMap.Count} patterns for '{startWord}'");
+        }
+
+        var elapsed = DateTime.Now - startTime;
+        _testOutputHelper.WriteLine($"\nCompleted in {elapsed.TotalMinutes:F1} minutes");
+        _testOutputHelper.WriteLine($"Total patterns cached: {totalPatterns}");
+
+        // Generate JSON output
+        var outputPath = Path.Combine("..", "..", "..", "..", "wwwroot", "second-word-cache.json");
+        var json = System.Text.Json.JsonSerializer.Serialize(cache,
+            new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        File.WriteAllText(outputPath, json);
+        _testOutputHelper.WriteLine($"\nGenerated second-word-cache.json ({json.Length} bytes)");
+        _testOutputHelper.WriteLine($"Location: {Path.GetFullPath(outputPath)}");
+    }
+
+    private LetterState[] PatternStringToLetterStates(string pattern)
+    {
+        return pattern.Select(c => c switch
+        {
+            'G' => LetterState.Green,
+            'Y' => LetterState.Yellow,
+            'W' => LetterState.White,
+            _ => LetterState.None
+        }).ToArray();
+    }
+
+    private class CachedRecommendation
+    {
+        public string Word { get; set; } = "";
+        public double Score { get; set; }
+        public bool IsPossibleAnswer { get; set; }
+    }
+
     // Helper method to access private GetPattern method via reflection
     private string InvokeGetPattern(string guess, string answer)
     {
