@@ -366,6 +366,109 @@ public class WordleStrategyServiceTests
         _testOutputHelper.WriteLine($"  Today and future: Available");
     }
 
+    [Fact]
+    public void GenerateHighQualityWordLists()
+    {
+        // This test generates optimized word lists for Normal mode performance
+        _testOutputHelper.WriteLine("Generating high-quality word lists...");
+
+        var allWordsList = GetAllWords();
+        var answerWords = allWordsList.Where(w => w.IsPossibleAnswer).ToList();
+        var guessOnlyWords = allWordsList.Where(w => !w.IsPossibleAnswer).ToList();
+
+        _testOutputHelper.WriteLine($"Total words: {allWordsList.Count}");
+        _testOutputHelper.WriteLine($"  Answer words: {answerWords.Count}");
+        _testOutputHelper.WriteLine($"  Guess-only words: {guessOnlyWords.Count}");
+
+        // 1. Generate high-quality candidates for early game (~1,500 words)
+        // Include both answer words and guess-only words, filter by quality
+        var highQualityCandidates = allWordsList
+            .Where(w => IsHighQualityWord(w.Word))
+            .Select(w => w.Word)
+            .OrderBy(w => w)
+            .ToList();
+
+        _testOutputHelper.WriteLine($"\nHigh-quality candidates: {highQualityCandidates.Count}");
+
+        // 2. Generate top guess-only words for mid game (~2,000 words)
+        // Score guess-only words by letter frequency and diversity
+        var scoredGuessWords = guessOnlyWords
+            .Select(w => new
+            {
+                Word = w.Word,
+                Score = CalculateWordQualityScore(w.Word)
+            })
+            .OrderByDescending(w => w.Score)
+            .Take(2000)
+            .Select(w => w.Word)
+            .ToList();
+
+        _testOutputHelper.WriteLine($"Top guess-only words: {scoredGuessWords.Count}");
+
+        // Generate JSON output
+        var outputPath = Path.Combine("..", "..", "..", "..", "wwwroot", "high-quality-words.json");
+        var json = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            highQuality = highQualityCandidates,
+            topGuessOnly = scoredGuessWords
+        }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        File.WriteAllText(outputPath, json);
+        _testOutputHelper.WriteLine($"\nGenerated high-quality-words.json ({json.Length} bytes)");
+        _testOutputHelper.WriteLine($"Location: {Path.GetFullPath(outputPath)}");
+    }
+
+    private bool IsHighQualityWord(string word)
+    {
+        var letters = word.ToCharArray();
+        var uniqueLetters = letters.Distinct().Count();
+        var vowels = new[] { 'a', 'e', 'i', 'o', 'u' };
+        var commonLetters = new[] { 'e', 'a', 'r', 's', 't', 'o', 'i', 'n' };
+
+        // Only words with all unique letters (no duplicates)
+        if (uniqueLetters != 5) return false;
+
+        // At least 3 unique vowels OR at least 4 unique common letters
+        var uniqueVowelCount = letters.Where(c => vowels.Contains(c)).Distinct().Count();
+        var uniqueCommonLetterCount = letters.Where(c => commonLetters.Contains(c)).Distinct().Count();
+
+        return uniqueVowelCount >= 3 || uniqueCommonLetterCount >= 4;
+    }
+
+    private double CalculateWordQualityScore(string word)
+    {
+        var letters = word.ToCharArray();
+        var uniqueLetters = letters.Distinct().Count();
+
+        // Letter frequency scores (based on English letter frequency)
+        var letterScores = new Dictionary<char, double>
+        {
+            {'e', 12.7}, {'t', 9.1}, {'a', 8.2}, {'o', 7.5}, {'i', 7.0},
+            {'n', 6.7}, {'s', 6.3}, {'h', 6.1}, {'r', 6.0}, {'d', 4.3},
+            {'l', 4.0}, {'c', 2.8}, {'u', 2.8}, {'m', 2.4}, {'w', 2.4},
+            {'f', 2.2}, {'g', 2.0}, {'y', 2.0}, {'p', 1.9}, {'b', 1.5},
+            {'v', 1.0}, {'k', 0.8}, {'j', 0.15}, {'x', 0.15}, {'q', 0.10}, {'z', 0.07}
+        };
+
+        // Calculate score based on letter diversity and frequency
+        double frequencyScore = letters.Sum(c => letterScores.GetValueOrDefault(c, 0.0));
+        double diversityScore = uniqueLetters * 2.0;  // Bonus for unique letters
+
+        return frequencyScore + diversityScore;
+    }
+
+    private List<WordleStrategyService.WordEntry> GetAllWords()
+    {
+        var allWordsField = typeof(WordleStrategyService).GetField("_allWords",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        if (allWordsField == null)
+            throw new InvalidOperationException("_allWords field not found");
+
+        var allWords = allWordsField.GetValue(_service) as List<WordleStrategyService.WordEntry>;
+        return allWords ?? new List<WordleStrategyService.WordEntry>();
+    }
+
     // Helper method to access private GetPattern method via reflection
     private string InvokeGetPattern(string guess, string answer)
     {

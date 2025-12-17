@@ -81,8 +81,7 @@
             <span class="recommendations-label">Recommendations:</span>
             <div class="mode-toggle">
                 <button class="mode-btn @(strategyMode == StrategyMode.Off ? "active" : "")" @onclick="() => SetStrategyMode(StrategyMode.Off)">Off</button>
-                @* Temporarily hidden due to performance issues - see docs/recommendation-optimization-analysis.md *@
-                @* <button class="mode-btn @(strategyMode == StrategyMode.Normal ? "active" : "")" @onclick="() => SetStrategyMode(StrategyMode.Normal)">Normal</button> *@
+                <button class="mode-btn @(strategyMode == StrategyMode.Normal ? "active" : "")" @onclick="() => SetStrategyMode(StrategyMode.Normal)">Normal</button>
                 <button class="mode-btn @(strategyMode == StrategyMode.Hard ? "active" : "")" @onclick="() => SetStrategyMode(StrategyMode.Hard)">Hard</button>
             </div>
             @if (isLoadingRecommendations)
@@ -281,6 +280,10 @@
             var startingWordsJson = await Http.GetStringAsync("starting-words.json");
             StrategyService.LoadStartingWords(startingWordsJson);
 
+            // Load high-quality words for Normal mode optimization
+            var highQualityWordsJson = await Http.GetStringAsync("high-quality-words.json");
+            StrategyService.LoadHighQualityWords(highQualityWordsJson);
+
             // Load word hints (synonym and haiku)
             await LoadWordHints();
 
@@ -406,8 +409,8 @@
         CheckAndFilterWords();
         StateHasChanged();
 
-        // Auto-recalculate recommendations for HARD mode on each letter change
-        if (strategyMode == StrategyMode.Hard)
+        // Auto-recalculate recommendations for HARD and NORMAL mode on each letter change
+        if (strategyMode != StrategyMode.Off)
         {
             await CalculateRecommendations();
         }
@@ -504,8 +507,8 @@
         CheckAndFilterWords();
         StateHasChanged();
 
-        // Auto-recalculate recommendations for HARD mode on letter delete
-        if (strategyMode == StrategyMode.Hard)
+        // Auto-recalculate recommendations for HARD and NORMAL mode on letter delete
+        if (strategyMode != StrategyMode.Off)
         {
             await CalculateRecommendations();
         }
@@ -584,8 +587,8 @@
             CheckAndFilterWords();
             StateHasChanged();
 
-            // Auto-recalculate recommendations for HARD mode on letter state change
-            if (strategyMode == StrategyMode.Hard)
+            // Auto-recalculate recommendations for HARD and NORMAL mode on letter state change
+            if (strategyMode != StrategyMode.Off)
             {
                 await CalculateRecommendations();
             }
