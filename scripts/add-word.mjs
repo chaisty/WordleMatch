@@ -227,6 +227,30 @@ async function addWord(word, dateStr = null) {
 
     console.log(`✓ Added "${word}" to used-words.csv`);
 
+    // Add word to words.txt if not already there
+    let addedToWordsTxt = false;
+    try {
+        const wordsTxtPath = join(__dirname, '../wwwroot/words.txt');
+        const wordsTxtContent = readFileSync(wordsTxtPath, 'utf-8');
+        const wordsArray = wordsTxtContent.trim().split('\n').map(w => w.trim().toLowerCase());
+
+        // Check if word already exists
+        if (!wordsArray.includes(word.toLowerCase())) {
+            // Add and sort alphabetically
+            wordsArray.push(word.toLowerCase());
+            wordsArray.sort();
+
+            // Write back to file
+            writeFileSync(wordsTxtPath, wordsArray.join('\n') + '\n', 'utf-8');
+            console.log(`✓ Added "${word}" to words.txt (was missing)`);
+            addedToWordsTxt = true;
+        } else {
+            console.log(`  "${word}" already in words.txt`);
+        }
+    } catch (error) {
+        console.log(`⚠️  Could not update words.txt: ${error.message}`);
+    }
+
     // Auto-load hints from source file
     let hintsAdded = false;
     let synonym = '';
@@ -268,21 +292,22 @@ async function addWord(word, dateStr = null) {
     console.log(`\n${'='.repeat(60)}`);
     console.log(`📋 SUMMARY`);
     console.log(`${'='.repeat(60)}`);
-    console.log(`Word:     ${word}`);
-    console.log(`Date:     ${dateFormatted}`);
-    console.log(`Game:     #${gameNumber}`);
+    console.log(`Word:        ${word}`);
+    console.log(`Date:        ${dateFormatted}`);
+    console.log(`Game:        #${gameNumber}`);
+    console.log(`Added to:    used-words.csv${addedToWordsTxt ? ', words.txt' : ''}`);
     if (hintsAdded) {
-        console.log(`Synonym:  ${synonym}`);
-        console.log(`Haiku:    ${haiku}`);
+        console.log(`Synonym:     ${synonym}`);
+        console.log(`Haiku:       ${haiku}`);
     } else {
-        console.log(`Hints:    (none)`);
+        console.log(`Hints:       (none)`);
     }
     console.log(`${'='.repeat(60)}\n`);
 
     // Always commit
     try {
         console.log(`Committing changes...`);
-        execSync('git add wwwroot/used-words.csv wwwroot/word-hints.csv', { cwd: join(__dirname, '..'), stdio: 'inherit' });
+        execSync('git add wwwroot/used-words.csv wwwroot/word-hints.csv wwwroot/words.txt', { cwd: join(__dirname, '..'), stdio: 'inherit' });
 
         const commitMessage = `Add Wordle word: ${word} (game #${gameNumber}, ${dateFormatted})`;
         execSync(`git commit -m "${commitMessage}"`, { cwd: join(__dirname, '..'), stdio: 'inherit' });
