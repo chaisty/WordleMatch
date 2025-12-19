@@ -475,6 +475,9 @@
     color: var(--color-recommendations-text-dark);
     font-size: 14px;
     line-height: 1.6;
+    min-height: 54px;
+    display: flex;
+    align-items: center;
 }
 
 .hint-display .haiku-text {
