@@ -114,6 +114,7 @@
                     <button class="mode-btn @(selectedHint == HintType.Vowels ? "active" : "")" @onclick="() => SetHint(HintType.Vowels)">Vowels</button>
                     <button class="mode-btn @(selectedHint == HintType.Synonym ? "active" : "")" @onclick="() => SetHint(HintType.Synonym)">Synonym</button>
                     <button class="mode-btn @(selectedHint == HintType.Haiku ? "active" : "")" @onclick="() => SetHint(HintType.Haiku)">Haiku</button>
+                    <button class="mode-btn @(selectedHint == HintType.Reveal ? "active" : "")" @onclick="() => SetHint(HintType.Reveal)">Reveal</button>
                 </div>
             </div>
             @if (selectedHint != null)
@@ -130,6 +131,17 @@
                     else if (selectedHint == HintType.Haiku && !string.IsNullOrEmpty(currentWordHaiku))
                     {
                         <div class="haiku-text">@currentWordHaiku.Replace(" / ", "\n")</div>
+                    }
+                    else if (selectedHint == HintType.Reveal)
+                    {
+                        @if (!revealConfirmed)
+                        {
+                            <button class="reveal-confirm-btn" @onclick="ConfirmReveal">Are you sure?</button>
+                        }
+                        else
+                        {
+                            <span class="reveal-word">@currentWordleWord.ToUpper()</span>
+                        }
                     }
                 </div>
             }
@@ -198,12 +210,14 @@
     private string currentWordHaiku = string.Empty;
     private int currentWordVowelCount = 0;
     private HintType? selectedHint = null;
+    private bool revealConfirmed = false;
 
     private enum HintType
     {
         Vowels,
         Synonym,
-        Haiku
+        Haiku,
+        Reveal
     }
 
     private enum WordFilter
@@ -776,6 +790,16 @@
     {
         // Toggle hint: if already selected, deselect it; otherwise select it
         selectedHint = selectedHint == hint ? null : hint;
+
+        // Reset reveal confirmation when switching hints
+        revealConfirmed = false;
+
+        StateHasChanged();
+    }
+
+    private void ConfirmReveal()
+    {
+        revealConfirmed = true;
         StateHasChanged();
     }
 

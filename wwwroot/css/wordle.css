@@ -482,6 +482,35 @@
     white-space: pre-line;
 }
 
+.hint-display .reveal-word {
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: var(--color-correct);
+}
+
+.hint-display .reveal-confirm-btn {
+    padding: 8px 16px;
+    background-color: var(--color-correct);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.hint-display .reveal-confirm-btn:hover {
+    background-color: var(--color-correct-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.hint-display .reveal-confirm-btn:active {
+    transform: translateY(0);
+}
+
 /* Mobile responsiveness for recommendations */
 @media (max-width: 600px) {
     .recommendations-section {
