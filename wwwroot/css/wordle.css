@@ -478,6 +478,7 @@
     min-height: 54px;
     display: flex;
     align-items: center;
+    justify-content: center;
 }
 
 .hint-display .haiku-text {
@@ -494,8 +495,8 @@
 
 .hint-display .reveal-confirm-btn {
     padding: 8px 16px;
-    background-color: var(--color-accent-primary);
-    color: white;
+    background-color: var(--color-hints-bg);
+    color: var(--color-text-primary);
     border: none;
     border-radius: 4px;
     font-size: 14px;
@@ -505,9 +506,10 @@
 }
 
 .hint-display .reveal-confirm-btn:hover {
-    background-color: var(--color-accent-primary-hover);
+    background-color: var(--color-hints-bg);
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    opacity: 0.9;
 }
 
 .hint-display .reveal-confirm-btn:active {
