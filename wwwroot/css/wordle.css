@@ -22,9 +22,13 @@
     justify-content: center;
     align-items: center;
     gap: 8px;
-    margin-bottom: 30px;
+    margin-bottom: 15px;
+    padding: 8px 16px;
     color: var(--color-text-secondary);
     font-size: 15px;
+    border: 1px solid var(--color-border-light);
+    border-radius: 4px;
+    background-color: var(--color-bg-primary);
 }
 
 .puzzle-date {
@@ -299,13 +303,14 @@
 @media (max-width: 480px) {
     .wordle-container {
         padding: 15px 10px;
-        margin: 20px auto;
+        margin: 10px auto;
     }
 
     .puzzle-info {
         font-size: 13px;
         gap: 6px;
-        margin-bottom: 20px;
+        margin-bottom: 15px;
+        padding: 6px 12px;
     }
 
     .entry-row,
