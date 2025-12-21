@@ -73,10 +73,15 @@
 
     @if (!string.IsNullOrEmpty(currentWordleWord))
     {
-        <div class="puzzle-info">
-            <span class="puzzle-date">@userLocalDate.ToString("MMMM d, yyyy")</span>
-            <span class="puzzle-separator">•</span>
-            <span class="puzzle-number">Puzzle #@currentWordleGameNumber</span>
+        <div class="puzzle-info-container">
+            <div class="puzzle-info">
+                <span class="puzzle-date">@userLocalDate.ToString("MMMM d, yyyy")</span>
+                <span class="puzzle-separator">•</span>
+                <span class="puzzle-number">Puzzle #@currentWordleGameNumber</span>
+            </div>
+            <button class="history-button" @onclick="OpenHistoryCalendar" title="Play past puzzles">
+                <span class="material-icons">history</span>
+            </button>
         </div>
     }
 
@@ -185,6 +190,13 @@
         </div>
 </div>
 
+<CalendarModal
+    IsOpen="@showCalendarModal"
+    SelectedDate="@userLocalDate"
+    UsedWords="@usedWords"
+    OnDateSelected="@OnHistoricalDateSelected"
+    OnClose="@(() => showCalendarModal = false)" />
+
 @code {
     private char[] letters = new char[5] { ' ', ' ', ' ', ' ', ' ' };
     private LetterState[] states = new LetterState[5];
@@ -201,6 +213,7 @@
     private bool isLoadingRecommendations = false;
     private bool isRefiningRecommendations = false;
     private bool isDarkMode = false;
+    private bool showCalendarModal = false;
 
     // Wordle game info based on user's local date
     private DateTime userLocalDate = DateTime.Today; // Uses browser's local timezone
@@ -400,6 +413,23 @@
             currentWordleWord = string.Empty;
             currentWordVowelCount = 0;
         }
+    }
+
+    private void OpenHistoryCalendar()
+    {
+        showCalendarModal = true;
+    }
+
+    private void OnHistoricalDateSelected(DateTime selectedDate)
+    {
+        userLocalDate = selectedDate;
+        showCalendarModal = false;
+
+        // Reset the game with the new date
+        CalculateCurrentWordleGame();
+        LookupCurrentWordHints();
+        FilterWords();
+        StateHasChanged();
     }
 
     private int CountVowels(string word)

@@ -1,0 +1,145 @@
+@if (IsOpen)
+{
+    <div class="calendar-modal-backdrop" @onclick="HandleBackdropClick">
+        <div class="calendar-modal" @onclick:stopPropagation="true">
+            <div class="calendar-header">
+                <button class="calendar-nav-button" @onclick="PreviousMonth" title="Previous month">
+                    <span class="material-icons">chevron_left</span>
+                </button>
+                <h3>@displayMonth.ToString("MMMM yyyy")</h3>
+                <button class="calendar-nav-button" @onclick="NextMonth" title="Next month">
+                    <span class="material-icons">chevron_right</span>
+                </button>
+            </div>
+
+            <div class="calendar-grid">
+                <!-- Day headers -->
+                @foreach (var day in new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" })
+                {
+                    <div class="calendar-day-header">@day</div>
+                }
+
+                <!-- Calendar days -->
+                @foreach (var day in GetCalendarDays())
+                {
+                    @if (day.HasValue)
+                    {
+                        var date = new DateTime(displayMonth.Year, displayMonth.Month, day.Value);
+                        var isSelected = date.Date == SelectedDate.Date;
+                        var hasPuzzle = HasPuzzleForDate(date);
+                        var isDisabled = !hasPuzzle || date > DateTime.Today || date < WordleStartDate;
+                        var cssClass = $"calendar-day {(isSelected ? "selected" : "")} {(hasPuzzle ? "has-puzzle" : "")} {(isDisabled ? "disabled" : "")}";
+
+                        <div class="@cssClass" @onclick="() => SelectDate(date)" title="@GetDateTitle(date)">
+                            @day.Value
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="calendar-day empty"></div>
+                    }
+                }
+            </div>
+
+            <div class="calendar-footer">
+                <button class="calendar-close-button" @onclick="CloseModal">Close</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool IsOpen { get; set; }
+
+    [Parameter]
+    public DateTime SelectedDate { get; set; }
+
+    [Parameter]
+    public EventCallback<DateTime> OnDateSelected { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public Dictionary<string, (int gameNumber, string date)> UsedWords { get; set; } = new();
+
+    private DateTime displayMonth;
+    private static readonly DateTime WordleStartDate = new DateTime(2021, 6, 19);
+
+    protected override void OnParametersSet()
+    {
+        displayMonth = new DateTime(SelectedDate.Year, SelectedDate.Month, 1);
+    }
+
+    private void PreviousMonth()
+    {
+        displayMonth = displayMonth.AddMonths(-1);
+    }
+
+    private void NextMonth()
+    {
+        displayMonth = displayMonth.AddMonths(1);
+    }
+
+    private List<int?> GetCalendarDays()
+    {
+        var days = new List<int?>();
+        var firstDayOfMonth = new DateTime(displayMonth.Year, displayMonth.Month, 1);
+        var dayOfWeek = (int)firstDayOfMonth.DayOfWeek;
+
+        // Add empty cells for days before the month starts
+        for (int i = 0; i < dayOfWeek; i++)
+        {
+            days.Add(null);
+        }
+
+        // Add all days in the month
+        var daysInMonth = DateTime.DaysInMonth(displayMonth.Year, displayMonth.Month);
+        for (int day = 1; day <= daysInMonth; day++)
+        {
+            days.Add(day);
+        }
+
+        return days;
+    }
+
+    private bool HasPuzzleForDate(DateTime date)
+    {
+        var gameNumber = (date.Date - WordleStartDate).Days;
+        return UsedWords.Values.Any(w => w.gameNumber == gameNumber);
+    }
+
+    private string GetDateTitle(DateTime date)
+    {
+        var gameNumber = (date.Date - WordleStartDate).Days;
+        var puzzle = UsedWords.FirstOrDefault(w => w.Value.gameNumber == gameNumber);
+
+        if (puzzle.Key != null)
+        {
+            return $"Puzzle #{gameNumber} - {puzzle.Key}";
+        }
+
+        return date.ToShortDateString();
+    }
+
+    private async Task SelectDate(DateTime date)
+    {
+        if (date > DateTime.Today || date < WordleStartDate || !HasPuzzleForDate(date))
+        {
+            return; // Don't select disabled dates
+        }
+
+        await OnDateSelected.InvokeAsync(date);
+    }
+
+    private async Task CloseModal()
+    {
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task HandleBackdropClick()
+    {
+        await OnClose.InvokeAsync();
+    }
+}
