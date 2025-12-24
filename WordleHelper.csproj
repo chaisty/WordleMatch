@@ -4,6 +4,10 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Skip unnecessary workload imports to speed up build -->
+    <DisableAndroidWorkloadImports>true</DisableAndroidWorkloadImports>
+    <DisableiOSWorkloadImports>true</DisableiOSWorkloadImports>
+    <DisableMacCatalystWorkloadImports>true</DisableMacCatalystWorkloadImports>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,12 +16,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Tests\**" />
-    <EmbeddedResource Remove="Tests\**" />
-    <None Remove="Tests\**" />
-    <Compile Remove="Tools\**" />
-    <EmbeddedResource Remove="Tools\**" />
-    <None Remove="Tools\**" />
+    <!-- Exclude Tools folder (contains analysis/benchmark utilities) -->
+    <Compile Remove="Tools/**" />
+    <Content Remove="Tools/**" />
+    <EmbeddedResource Remove="Tools/**" />
+    <None Remove="Tools/**" />
+    <!-- Exclude Tests folder (separate test project) -->
+    <Compile Remove="Tests/**" />
+    <Content Remove="Tests/**" />
+    <EmbeddedResource Remove="Tests/**" />
+    <None Remove="Tests/**" />
   </ItemGroup>
 
 </Project>

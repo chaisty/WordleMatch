@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <!-- Exclude Tools directory from all builds -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);Tools/**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>
