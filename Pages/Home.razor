@@ -72,10 +72,10 @@
     </div>
 
     <div class="puzzle-info-container">
-        <button class="history-button" @onclick="OpenHistoryCalendar" title="Play past puzzles">
-            <span class="material-icons">history</span>
-        </button>
         <div class="puzzle-info">
+            <button class="history-button" @onclick="OpenHistoryCalendar" title="Play past puzzles">
+                <span class="material-icons">history</span>
+            </button>
             <span class="puzzle-date">@userLocalDate.ToString("MMMM d, yyyy")</span>
             <span class="puzzle-separator">•</span>
             @if (!string.IsNullOrEmpty(currentWordleWord))
