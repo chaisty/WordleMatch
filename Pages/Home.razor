@@ -76,15 +76,15 @@
             <span class="material-icons">history</span>
         </button>
         <div class="puzzle-info">
+            <span class="puzzle-date">@userLocalDate.ToString("MMMM d, yyyy")</span>
+            <span class="puzzle-separator">•</span>
             @if (!string.IsNullOrEmpty(currentWordleWord))
             {
-                <span class="puzzle-date">@userLocalDate.ToString("MMMM d, yyyy")</span>
-                <span class="puzzle-separator">•</span>
                 <span class="puzzle-number">Puzzle #@currentWordleGameNumber</span>
             }
             else
             {
-                <span class="puzzle-date">Today's word not loaded</span>
+                <span class="puzzle-number">Today's word not loaded</span>
             }
         </div>
     </div>
