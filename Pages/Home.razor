@@ -71,19 +71,23 @@
         Type letters from your Wordle guesses. Lowercase = excluded letter (white), Uppercase = letter in word but wrong position (yellow). Click the button to cycle through states. Press Space to leave a box empty (wildcard).
     </div>
 
-    @if (!string.IsNullOrEmpty(currentWordleWord))
-    {
-        <div class="puzzle-info-container">
-            <div class="puzzle-info">
+    <div class="puzzle-info-container">
+        <button class="history-button" @onclick="OpenHistoryCalendar" title="Play past puzzles">
+            <span class="material-icons">history</span>
+        </button>
+        <div class="puzzle-info">
+            @if (!string.IsNullOrEmpty(currentWordleWord))
+            {
                 <span class="puzzle-date">@userLocalDate.ToString("MMMM d, yyyy")</span>
                 <span class="puzzle-separator">•</span>
                 <span class="puzzle-number">Puzzle #@currentWordleGameNumber</span>
-            </div>
-            <button class="history-button" @onclick="OpenHistoryCalendar" title="Play past puzzles">
-                <span class="material-icons">history</span>
-            </button>
+            }
+            else
+            {
+                <span class="puzzle-date">Today's word not loaded</span>
+            }
         </div>
-    }
+    </div>
 
     <div class="recommendations-section">
         <div class="recommendations-header">
@@ -114,48 +118,45 @@
         </div>
     </div>
 
-    @if (!string.IsNullOrEmpty(currentWordleWord))
-    {
-        <div class="recommendations-section hints-section">
-            <div class="recommendations-header">
-                <span class="recommendations-label">Hints:</span>
-                <div class="mode-toggle">
-                    <button class="mode-btn @(selectedHint == HintType.Vowels ? "active" : "")" @onclick="() => SetHint(HintType.Vowels)">Vowels</button>
-                    <button class="mode-btn @(selectedHint == HintType.Synonym ? "active" : "")" @onclick="() => SetHint(HintType.Synonym)">Synonym</button>
-                    <button class="mode-btn @(selectedHint == HintType.Haiku ? "active" : "")" @onclick="() => SetHint(HintType.Haiku)">Haiku</button>
-                    <button class="mode-btn @(selectedHint == HintType.Reveal ? "active" : "")" @onclick="() => SetHint(HintType.Reveal)">Reveal</button>
-                </div>
+    <div class="recommendations-section hints-section">
+        <div class="recommendations-header">
+            <span class="recommendations-label">Hints:</span>
+            <div class="mode-toggle">
+                <button class="mode-btn @(selectedHint == HintType.Vowels ? "active" : "")" @onclick="() => SetHint(HintType.Vowels)" disabled="@string.IsNullOrEmpty(currentWordleWord)">Vowels</button>
+                <button class="mode-btn @(selectedHint == HintType.Synonym ? "active" : "")" @onclick="() => SetHint(HintType.Synonym)" disabled="@string.IsNullOrEmpty(currentWordleWord)">Synonym</button>
+                <button class="mode-btn @(selectedHint == HintType.Haiku ? "active" : "")" @onclick="() => SetHint(HintType.Haiku)" disabled="@string.IsNullOrEmpty(currentWordleWord)">Haiku</button>
+                <button class="mode-btn @(selectedHint == HintType.Reveal ? "active" : "")" @onclick="() => SetHint(HintType.Reveal)" disabled="@string.IsNullOrEmpty(currentWordleWord)">Reveal</button>
             </div>
-            @if (selectedHint != null)
-            {
-                <div class="hint-display">
-                    @if (selectedHint == HintType.Vowels)
-                    {
-                        <span>Contains @currentWordVowelCount vowel@(currentWordVowelCount == 1 ? "" : "s")</span>
-                    }
-                    else if (selectedHint == HintType.Synonym && !string.IsNullOrEmpty(currentWordSynonym))
-                    {
-                        <span>@currentWordSynonym</span>
-                    }
-                    else if (selectedHint == HintType.Haiku && !string.IsNullOrEmpty(currentWordHaiku))
-                    {
-                        <div class="haiku-text">@currentWordHaiku.Replace(" / ", "\n")</div>
-                    }
-                    else if (selectedHint == HintType.Reveal)
-                    {
-                        @if (!revealConfirmed)
-                        {
-                            <button class="reveal-confirm-btn" @onclick="ConfirmReveal">Are you sure?</button>
-                        }
-                        else
-                        {
-                            <span class="reveal-word">@currentWordleWord.ToUpper()</span>
-                        }
-                    }
-                </div>
-            }
         </div>
-    }
+        @if (selectedHint != null && !string.IsNullOrEmpty(currentWordleWord))
+        {
+            <div class="hint-display">
+                @if (selectedHint == HintType.Vowels)
+                {
+                    <span>Contains @currentWordVowelCount vowel@(currentWordVowelCount == 1 ? "" : "s")</span>
+                }
+                else if (selectedHint == HintType.Synonym && !string.IsNullOrEmpty(currentWordSynonym))
+                {
+                    <span>@currentWordSynonym</span>
+                }
+                else if (selectedHint == HintType.Haiku && !string.IsNullOrEmpty(currentWordHaiku))
+                {
+                    <div class="haiku-text">@currentWordHaiku.Replace(" / ", "\n")</div>
+                }
+                else if (selectedHint == HintType.Reveal)
+                {
+                    @if (!revealConfirmed)
+                    {
+                        <button class="reveal-confirm-btn" @onclick="ConfirmReveal">Are you sure?</button>
+                    }
+                    else
+                    {
+                        <span class="reveal-word">@currentWordleWord.ToUpper()</span>
+                    }
+                }
+            </div>
+        }
+    </div>
 
     <div class="filter-buttons">
         <button class="filter-btn unused-btn @(wordFilter == WordFilter.Unused ? "active" : "")" @onclick="() => SetFilter(WordFilter.Unused)">unused</button>
