@@ -230,6 +230,7 @@
     private int currentWordVowelCount = 0;
     private HintType? selectedHint = null;
     private bool revealConfirmed = false;
+    private bool hintsLoaded = false;
 
     private enum HintType
     {
@@ -378,7 +379,7 @@
     {
         try
         {
-            // Load word hints (only contains hints for words that have been added)
+            // Load recent word hints (small file with latest puzzle hints)
             var hintsCsv = await Http.GetStringAsync("word-hints.csv");
             foreach (var line in hintsCsv.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
@@ -395,6 +396,39 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading word hints: {ex.Message}");
+        }
+    }
+
+    private async Task LoadHistoricWordHints()
+    {
+        if (hintsLoaded) return; // Already loaded
+
+        try
+        {
+            Console.WriteLine("Loading historic word hints...");
+            // Load historic word hints (large file with all historical puzzle hints)
+            var hintsCsv = await Http.GetStringAsync("55ee0527d71c36d8-wordle-hints.csv");
+            foreach (var line in hintsCsv.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var parts = line.Split(',', 3); // Split into max 3 parts to handle commas in haiku
+                if (parts.Length >= 3 && parts[0] != "word") // Skip header
+                {
+                    var word = parts[0].Trim().ToLower();
+                    var synonym = parts[1].Trim();
+                    var haiku = parts[2].Trim().Trim('"'); // Remove quotes if present
+                    // Don't overwrite if already exists (recent hints take precedence)
+                    if (!wordHints.ContainsKey(word))
+                    {
+                        wordHints[word] = (synonym, haiku);
+                    }
+                }
+            }
+            hintsLoaded = true;
+            Console.WriteLine("Historic word hints loaded successfully");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading historic word hints: {ex.Message}");
         }
     }
 
@@ -422,10 +456,13 @@
         showCalendarModal = true;
     }
 
-    private void OnHistoricalDateSelected(DateTime selectedDate)
+    private async Task OnHistoricalDateSelected(DateTime selectedDate)
     {
         userLocalDate = selectedDate;
         showCalendarModal = false;
+
+        // Load historic hints if not already loaded
+        await LoadHistoricWordHints();
 
         // Reset the game with the new date
         CalculateCurrentWordleGame();
