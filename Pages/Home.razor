@@ -259,6 +259,11 @@
         if (recommendations == null || !recommendations.Any())
             return Enumerable.Empty<WordleStrategyService.Recommendation>();
 
+        // If there are 3 or fewer possible answers, show all of them
+        var possibleAnswers = recommendations.Where(r => r.IsPossibleAnswer).ToList();
+        if (possibleAnswers.Count <= 3 && possibleAnswers.Count > 0)
+            return possibleAnswers;
+
         var top3 = recommendations.Take(3).ToList();
 
         // Check if any of the top 3 are solution words
