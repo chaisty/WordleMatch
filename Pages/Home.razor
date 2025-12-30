@@ -67,6 +67,14 @@
         <button class="add-guess-btn" id="add-guess-btn" tabindex="6" @onclick="AddGuess" title="add new guess">+</button>
     </div>
 
+    <div class="gameplay-mode-section">
+        <span class="mode-label">Mode:</span>
+        <div class="mode-toggle">
+            <button class="mode-btn @(gameplayMode == GameplayMode.Normal ? "active" : "")" @onclick="() => SetGameplayMode(GameplayMode.Normal)">Normal</button>
+            <button class="mode-btn @(gameplayMode == GameplayMode.Hard ? "active" : "")" @onclick="() => SetGameplayMode(GameplayMode.Hard)">Hard</button>
+        </div>
+    </div>
+
     <div class="instructions">
         Type letters from your Wordle guesses. Lowercase = excluded letter (white), Uppercase = letter in word but wrong position (yellow). Click the button to cycle through states. Press Space to leave a box empty (wildcard).
     </div>
@@ -212,6 +220,7 @@
     private List<(char[] letters, LetterState[] states)> previousGuesses = new List<(char[], LetterState[])>();
     private List<WordleStrategyService.Recommendation>? recommendations = null;
     private StrategyMode strategyMode = StrategyMode.Off;
+    private GameplayMode gameplayMode = GameplayMode.Normal;
     private bool isLoadingRecommendations = false;
     private bool isRefiningRecommendations = false;
     private bool isDarkMode = false;
@@ -250,6 +259,12 @@
     private enum StrategyMode
     {
         Off,
+        Normal,
+        Hard
+    }
+
+    private enum GameplayMode
+    {
         Normal,
         Hard
     }
@@ -844,12 +859,12 @@
             var guessStates = (LetterState[])states.Clone();
             previousGuesses.Add((guessLetters, guessStates));
 
-            // Clear the entry boxes, but preserve green letters and mark them as locked
+            // Clear the entry boxes, but preserve green letters and mark them as locked (only in Hard mode)
             for (int i = 0; i < 5; i++)
             {
-                if (states[i] == LetterState.Green)
+                if (gameplayMode == GameplayMode.Hard && states[i] == LetterState.Green)
                 {
-                    // Keep green letter and mark as locked (inherited)
+                    // Keep green letter and mark as locked (inherited) - Hard mode only
                     lockedPositions[i] = true;
                 }
                 else
@@ -881,7 +896,17 @@
     {
         if (index >= 0 && index < previousGuesses.Count)
         {
+            // Check if we're removing the last guess (immediately before current row)
+            bool removingLastGuess = index == previousGuesses.Count - 1;
+
             previousGuesses.RemoveAt(index);
+
+            // If we removed the last guess, recalculate locked positions
+            if (removingLastGuess)
+            {
+                RecalculateLockedPositions();
+            }
+
             CheckAndFilterWords();
             StateHasChanged();
 
@@ -889,6 +914,72 @@
             if (strategyMode != StrategyMode.Off)
             {
                 await CalculateRecommendations();
+            }
+        }
+    }
+
+    private void RecalculateLockedPositions()
+    {
+        // In Normal mode, just clear all locked positions
+        if (gameplayMode == GameplayMode.Normal)
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                if (lockedPositions[i])
+                {
+                    letters[i] = ' ';
+                    states[i] = LetterState.None;
+                    lockedPositions[i] = false;
+                }
+            }
+        }
+        // In Hard mode, rebuild locked positions from the new last guess
+        else if (previousGuesses.Count > 0)
+        {
+            // Get the new last guess (which is now the one immediately before current row)
+            var (lastGuessLetters, lastGuessStates) = previousGuesses[previousGuesses.Count - 1];
+
+            for (int i = 0; i < 5; i++)
+            {
+                if (lastGuessStates[i] == LetterState.Green)
+                {
+                    // Inherit green letter from new last guess
+                    letters[i] = lastGuessLetters[i];
+                    states[i] = LetterState.Green;
+                    lockedPositions[i] = true;
+                }
+                else if (lockedPositions[i])
+                {
+                    // Position was locked but new last guess doesn't have green here
+                    // Clear this position
+                    letters[i] = ' ';
+                    states[i] = LetterState.None;
+                    lockedPositions[i] = false;
+                }
+            }
+        }
+        else
+        {
+            // No previous guesses left, clear all locked positions
+            for (int i = 0; i < 5; i++)
+            {
+                if (lockedPositions[i])
+                {
+                    letters[i] = ' ';
+                    states[i] = LetterState.None;
+                    lockedPositions[i] = false;
+                }
+            }
+        }
+
+        // Reset focus to first non-locked position
+        focusedIndex = 0;
+        for (int i = 0; i < 5; i++)
+        {
+            if (!lockedPositions[i])
+            {
+                focusedIndex = i;
+                break;
             }
         }
     }
@@ -950,6 +1041,16 @@
 
         // Auto-calculate when switching to Normal or Hard
         await CalculateRecommendations();
+    }
+
+    private void SetGameplayMode(GameplayMode mode)
+    {
+        gameplayMode = mode;
+
+        // Recalculate locked positions based on the new mode
+        RecalculateLockedPositions();
+
+        StateHasChanged();
     }
 
     private async Task CalculateRecommendations()

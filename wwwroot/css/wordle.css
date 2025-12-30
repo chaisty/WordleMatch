@@ -662,6 +662,21 @@
     }
 }
 
+/* Gameplay Mode Section */
+.gameplay-mode-section {
+    margin: 12px 0 8px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.mode-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
 /* Recommendations Section */
 .recommendations-section {
     margin: 15px 0;
