@@ -7,7 +7,7 @@ import * as readline from 'readline';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const WORDLE_START_DATE = new Date('2021-06-20'); // Game #1 started on June 20, 2021
+const WORDLE_START_DATE = new Date('2021-06-19'); // Game #1 started on June 19, 2021
 
 function calculateGameNumber(date) {
     const daysDiff = Math.floor((date - WORDLE_START_DATE) / (1000 * 60 * 60 * 24));

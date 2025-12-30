@@ -222,9 +222,13 @@ def add_word_to_database(word_data):
         print("=" * 70)
         print()
 
+        # Get the directory where this script is located
+        import os
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+
         result = subprocess.run(
             ['node', 'add-word.mjs', word_data['word'], word_data['date']],
-            cwd='scripts',
+            cwd=script_dir,
             capture_output=True,
             text=True,
             encoding='utf-8',
