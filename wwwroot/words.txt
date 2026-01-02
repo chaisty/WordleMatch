@@ -1,4 +1,4 @@
-﻿aback
+aback
 abase
 abate
 abbey
@@ -1777,6 +1777,7 @@ sinew
 singe
 siren
 sissy
+sitar
 sixth
 sixty
 skate
