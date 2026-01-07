@@ -453,11 +453,8 @@
                     var word = parts[0].Trim().ToLower();
                     var synonym = parts[1].Trim();
                     var haiku = parts[2].Trim().Trim('"'); // Remove quotes if present
-                    // Don't overwrite if already exists (recent hints take precedence)
-                    if (!wordHints.ContainsKey(word))
-                    {
-                        wordHints[word] = (synonym, haiku);
-                    }
+                    // Files don't overlap, so just merge all entries
+                    wordHints[word] = (synonym, haiku);
                 }
             }
             hintsLoaded = true;
